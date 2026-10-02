@@ -1,0 +1,146 @@
+import fs from "node:fs";
+import path from "node:path";
+import { createHash } from "node:crypto";
+import { languageFromFile } from "../closure/extract";
+import { contentHash } from "../closure/hash";
+import { logStage } from "../log";
+import type { Candidate, SourceFile } from "../model/types";
+import { problemsForCandidate, problemsForFiles, toSlug } from "../model/validate";
+import { scanSecrets } from "../security/secrets";
+import { atomicWriteJson, readJson } from "./atomic";
+import { saveEntry, type SaveOutcome } from "./entries";
+import { assertSafeRelPath, bankPaths } from "./paths";
+
+export function listCandidates(home: string): Candidate[] {
+  const root = bankPaths(home).inbox;
+  if (!fs.existsSync(root)) return [];
+  const candidates: Candidate[] = [];
+  for (const name of fs.readdirSync(root)) {
+    if (!name.endsWith(".json")) continue;
+    const candidate = readJson<Candidate>(path.join(root, name));
+    if (candidate.schema !== 1) continue;
+    candidates.push(candidate);
+  }
+  return candidates.sort((left, right) => right.score - left.score);
+}
+
+export function readCandidate(home: string, id: string): Candidate | undefined {
+  const file = path.join(bankPaths(home).inbox, `${id}.json`);
+  if (!fs.existsSync(file)) return undefined;
+  return readJson<Candidate>(file);
+}
+
+export function writeCandidate(home: string, candidate: Candidate): void {
+  const problems = problemsForCandidate(candidate);
+  if (problems.length > 0) throw new Error(problems.join(" "));
+  atomicWriteJson(path.join(bankPaths(home).inbox, `${candidate.id}.json`), candidate);
+  logStage("inbox", "out", { id: candidate.id, proposedBy: candidate.proposedBy });
+}
+
+export function removeCandidate(home: string, id: string): void {
+  const file = path.join(bankPaths(home).inbox, `${id}.json`);
+  if (fs.existsSync(file)) fs.unlinkSync(file);
+}
+
+export function listDismissed(home: string): string[] {
+  const file = bankPaths(home).dismissed;
+  if (!fs.existsSync(file)) return [];
+  const raw = readJson<{ ids?: string[] }>(file);
+  return raw.ids ?? [];
+}
+
+export function dismissCandidate(home: string, id: string): boolean {
+  const candidate = readCandidate(home, id);
+  if (!candidate) return false;
+  const ids = new Set(listDismissed(home));
+  ids.add(id);
+  atomicWriteJson(bankPaths(home).dismissed, { schema: 1, ids: [...ids] });
+  removeCandidate(home, id);
+  logStage("inbox", "out", { dismissed: id });
+  return true;
+}
+
+export async function acceptCandidate(home: string, id: string): Promise<SaveOutcome | { ok: false; reason: "missing" }> {
+  const candidate = readCandidate(home, id);
+  if (!candidate) return { ok: false, reason: "missing" };
+  const outcome = await saveEntry(
+    home,
+    {
+      slug: candidate.draft.slug,
+      title: candidate.draft.title,
+      language: candidate.draft.language,
+      entryFile: candidate.draft.entryFile,
+      symbols: candidate.draft.symbols,
+      tags: candidate.draft.tags,
+      intent: candidate.draft.intent,
+      whenNot: candidate.draft.whenNot,
+      deps: candidate.draft.deps,
+      origin: candidate.draft.origin,
+      ownership: candidate.draft.ownership,
+    },
+    candidate.files,
+  );
+  if (outcome.ok) removeCandidate(home, id);
+  logStage("inbox", "out", { accepted: id, ok: outcome.ok });
+  return outcome;
+}
+
+export interface Proposal {
+  title: string;
+  intent: string;
+  whenNot?: string;
+  tags: string[];
+  files: SourceFile[];
+  deps?: { name: string; range: string }[];
+}
+
+export function proposeCandidate(home: string, proposal: Proposal): { ok: true; candidate: Candidate } | { ok: false; reason: string } {
+  if (proposal.files.length === 0 || proposal.files.length > 20) return { ok: false, reason: "A proposal has 1 to 20 files." };
+  const bytes = proposal.files.reduce((sum, file) => sum + Buffer.byteLength(file.content), 0);
+  if (bytes > 200_000) return { ok: false, reason: "A proposal is larger than 200 KB." };
+  if (problemsForFiles(proposal.files).length > 0) return { ok: false, reason: "A proposal path is not relative." };
+  for (const file of proposal.files) {
+    try {
+      assertSafeRelPath(file.relPath);
+    } catch {
+      return { ok: false, reason: "A proposal path is not relative." };
+    }
+  }
+  const findings = scanSecrets(proposal.files.map((file) => file.content).join("\n")).filter((finding) => finding.severity === "block");
+  if (findings.length > 0) return { ok: false, reason: "A proposal contains a secret." };
+  const id = createHash("sha256").update(`${proposal.title}\n${contentHash(proposal.files)}`).digest("hex").slice(0, 16);
+  const candidate: Candidate = {
+    schema: 1,
+    id,
+    draft: {
+      schema: 1,
+      slug: toSlug(proposal.title),
+      title: proposal.title,
+      version: 1,
+      contentHash: contentHash(proposal.files),
+      language: languageFromFile(proposal.files[0].relPath),
+      entryFile: proposal.files[0].relPath,
+      symbols: [toSlug(proposal.title)],
+      tags: proposal.tags.map((tag) => tag.toLowerCase()).slice(0, 8),
+      intent: proposal.intent,
+      whenNot: proposal.whenNot,
+      deps: proposal.deps ?? [],
+      origin: {
+        repoId: "agent",
+        repoName: "agent",
+        relPath: proposal.files[0].relPath,
+        range: { startLine: 1, endLine: 1 },
+        capturedBy: "agent",
+      },
+      ownership: "unknown",
+    },
+    files: proposal.files,
+    score: 0.5,
+    reasons: ["agent-proposed"],
+    sources: [],
+    proposedBy: "agent",
+    createdAt: new Date().toISOString(),
+  };
+  writeCandidate(home, candidate);
+  return { ok: true, candidate };
+}

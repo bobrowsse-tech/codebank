@@ -10,7 +10,7 @@ The repository is public and licensed under MIT. Implementation follows `spec/CO
 2. Run **Codebank: Search** and pick a result.
 3. Insert it. Codebank writes the files and can type an install command into a terminal without running it.
 
-From a terminal, the same bank is `codebank add`, `codebank search`, and `codebank get`.
+From a terminal, the same bank is `codebank add`, `codebank search`, and `codebank get`. `codebank mine` looks through local repositories and leaves candidates in the inbox until you accept one. `codebank mcp` speaks the agent protocol on standard input.
 
 ## Repository rules
 

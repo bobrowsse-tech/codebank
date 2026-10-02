@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { appendUsage, applyInsert, describeRepo, planInsert, readEntry, readEntryFiles, recordUse, searchBank } from "../../core/src/index.ts";
+import { appendUsage, applyInsert, describeRepo, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, searchBank } from "../../core/src/index.ts";
 import { languageFromFile } from "../../core/src/closure/extract.ts";
 
 export async function insertCommand(homeOf: () => string): Promise<void> {
@@ -13,7 +13,7 @@ export async function insertCommand(homeOf: () => string): Promise<void> {
   await insertSlug(home, picked.slug);
 }
 
-export async function insertSlug(home: string, slug: string): Promise<void> {
+export async function insertSlug(home: string, slug: string, repoId?: string): Promise<void> {
   const entry = readEntry(home, slug);
   if (!entry) {
     void vscode.window.showWarningMessage(`No entry named ${slug}.`);
@@ -93,7 +93,8 @@ export async function insertSlug(home: string, slug: string): Promise<void> {
     }
   }
   await recordUse(home, slug, plan.verbatim);
-  appendUsage(home, { t: new Date().toISOString(), kind: "inserted", surface: "quickpick", slug, verbatim: plan.verbatim });
+  if (repoId) noteAccepted(home, repoId, slug);
+  appendUsage(home, { t: new Date().toISOString(), kind: "inserted", surface: repoId ? "codelens" : "quickpick", slug, verbatim: plan.verbatim });
   if (plan.installCommand) {
     const install = await vscode.window.showInformationMessage(`Missing ${plan.missingDeps.map((dep) => dep.name).join(", ")}.`, "Show install command");
     if (install) {

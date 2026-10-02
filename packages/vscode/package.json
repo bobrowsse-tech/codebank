@@ -20,7 +20,13 @@
       { "command": "codebank.insert", "title": "Codebank: Insert…" },
       { "command": "codebank.retire", "title": "Retire Entry" },
       { "command": "codebank.rebuildIndex", "title": "Codebank: Rebuild Index" },
-      { "command": "codebank.openHome", "title": "Codebank: Reveal Bank Folder" }
+      { "command": "codebank.openHome", "title": "Codebank: Reveal Bank Folder" },
+      { "command": "codebank.mine", "title": "Codebank: Scan This Machine" },
+      { "command": "codebank.openInbox", "title": "Codebank: Open Inbox" },
+      { "command": "codebank.accept", "title": "Accept Candidate" },
+      { "command": "codebank.dismiss", "title": "Dismiss Candidate" },
+      { "command": "codebank.preview", "title": "Preview" },
+      { "command": "codebank.mute", "title": "Mute Suggestions Here" }
     ],
     "keybindings": [
       { "command": "codebank.deposit", "key": "ctrl+alt+b", "mac": "cmd+alt+b", "when": "editorHasSelection" },
@@ -44,7 +50,9 @@
       ],
       "view/item/context": [
         { "command": "codebank.insert", "when": "view == codebank.bank && viewItem == entry", "group": "inline" },
-        { "command": "codebank.retire", "when": "view == codebank.bank && viewItem == entry" }
+        { "command": "codebank.retire", "when": "view == codebank.bank && viewItem == entry" },
+        { "command": "codebank.accept", "when": "view == codebank.inbox && viewItem == candidate", "group": "inline" },
+        { "command": "codebank.dismiss", "when": "view == codebank.inbox && viewItem == candidate" }
       ]
     },
     "configuration": {
@@ -91,6 +99,35 @@
             "mode": { "type": "string", "enum": ["inspect", "insert-plan"] }
           },
           "required": ["slug"]
+        }
+      },
+      {
+        "name": "codebank_propose",
+        "displayName": "Codebank propose",
+        "toolReferenceName": "codebankPropose",
+        "canBeReferencedInPrompt": true,
+        "tags": ["codebank"],
+        "modelDescription": "Propose a reusable solution for the inbox. It is never written into the project until a person accepts it.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "intent": { "type": "string" },
+            "whenNot": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "relPath": { "type": "string" },
+                  "content": { "type": "string" }
+                },
+                "required": ["relPath", "content"]
+              }
+            }
+          },
+          "required": ["title", "intent", "tags", "files"]
         }
       }
     ]

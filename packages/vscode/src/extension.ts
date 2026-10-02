@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
-import { ensureHome, loadIndex, resolveHome, retireEntry, setLogger } from "../../core/src/index.ts";
+import { acceptCandidate, dismissCandidate, ensureHome, listCandidates, loadIndex, resolveHome, retireEntry, setLogger } from "../../core/src/index.ts";
 import { BankView, InboxView, UpdatesView } from "./bank.ts";
 import { depositSelection } from "./deposit.ts";
 import { insertCommand, insertSlug } from "./insert.ts";
 import { searchCommand } from "./search.ts";
+import { registerRecall } from "./recall.ts";
+import { scanFolders } from "./scan.ts";
 import { registerTools } from "./tools.ts";
 
 export function bankHome(): string {
@@ -27,16 +29,32 @@ export function activate(context: vscode.ExtensionContext): void {
   }, 0);
 
   const bank = new BankView(() => bankHome());
-  const inbox = new InboxView();
+  const inbox = new InboxView(bankHome);
   const updates = new UpdatesView();
+  const inboxView = vscode.window.createTreeView("codebank.inbox", { treeDataProvider: inbox });
+  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
+  const refreshStatus = () => {
+    const waiting = listCandidates(bankHome()).length;
+    status.text = waiting > 0 ? `$(archive) Codebank ${waiting}` : "$(archive) Codebank";
+    inboxView.badge = waiting > 0 ? { value: waiting, tooltip: `${waiting} waiting` } : undefined;
+  };
+  const refreshInbox = () => {
+    inbox.refresh();
+    refreshStatus();
+  };
   context.subscriptions.push(
     output,
+    inboxView,
     vscode.window.registerTreeDataProvider("codebank.bank", bank),
-    vscode.window.registerTreeDataProvider("codebank.inbox", inbox),
     vscode.window.registerTreeDataProvider("codebank.updates", updates),
     vscode.commands.registerCommand("codebank.deposit", () => depositSelection(bankHome, () => bank.refresh())),
     vscode.commands.registerCommand("codebank.search", () => searchCommand(bankHome)),
-    vscode.commands.registerCommand("codebank.insert", (slug?: string) => (slug ? insertSlug(bankHome(), slug) : insertCommand(bankHome))),
+    vscode.commands.registerCommand("codebank.insert", (slug?: string, repoId?: string) =>
+      slug ? insertSlug(bankHome(), slug, repoId) : insertCommand(bankHome),
+    ),
+    vscode.commands.registerCommand("codebank.openInbox", () => {
+      void vscode.commands.executeCommand("codebank.inbox.focus");
+    }),
     vscode.commands.registerCommand("codebank.retire", (item?: { slug?: string }) => retire(bankHome(), item?.slug, bank)),
     vscode.commands.registerCommand("codebank.rebuildIndex", () => {
       loadIndex(bankHome());
@@ -45,11 +63,24 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("codebank.openHome", () => {
       void vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(bankHome()));
     }),
+    vscode.commands.registerCommand("codebank.mine", () => scanFolders(bankHome, refreshInbox)),
+    vscode.commands.registerCommand("codebank.accept", async (item?: { slug?: string }) => {
+      if (!item?.slug) return;
+      const outcome = await acceptCandidate(bankHome(), item.slug);
+      if (!outcome.ok) void vscode.window.showWarningMessage(outcome.reason === "missing" ? "That candidate is gone." : `Not accepted: ${outcome.reason}.`);
+      refreshInbox();
+      bank.refresh();
+    }),
+    vscode.commands.registerCommand("codebank.dismiss", (item?: { slug?: string }) => {
+      if (!item?.slug) return;
+      dismissCandidate(bankHome(), item.slug);
+      refreshInbox();
+    }),
     ...registerTools(bankHome),
   );
+  registerRecall(context, bankHome);
 
-  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
-  status.text = "$(archive) Codebank";
+  refreshStatus();
   status.command = "codebank.search";
   status.tooltip = "Search the bank";
   status.show();

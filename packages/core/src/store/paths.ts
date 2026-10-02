@@ -17,6 +17,7 @@ export function bankPaths(home: string) {
     lineage: path.join(home, "lineage"),
     usage: path.join(home, "state", "usage.jsonl"),
     dismissed: path.join(home, "state", "dismissed.json"),
+    recall: path.join(home, "state", "recall.json"),
     index: path.join(home, "cache", "index.json"),
     lock: path.join(home, "lock"),
   };
