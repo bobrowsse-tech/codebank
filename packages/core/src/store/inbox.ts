@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { languageFromFile } from "../closure/extract";
 import { contentHash } from "../closure/hash";
 import { logStage } from "../log";
+import { tuning } from "../tuning";
 import type { Candidate, SourceFile } from "../model/types";
 import { isPackageDep, problemsForCandidate, problemsForFiles, toSlug } from "../model/validate";
 import { scanSecrets } from "../security/secrets";
@@ -122,6 +123,10 @@ export interface Proposal {
 }
 
 export async function proposeCandidate(home: string, proposal: Proposal): Promise<{ ok: true; candidate: Candidate } | { ok: false; reason: string }> {
+  if (!proposal.title.trim()) return { ok: false, reason: "A proposal needs a title." };
+  if (proposal.intent.length > tuning.limits.text) return { ok: false, reason: "A proposal intent is over 280 characters." };
+  if (proposal.whenNot && proposal.whenNot.length > tuning.limits.text) return { ok: false, reason: "A proposal when-not is over 280 characters." };
+  if (proposal.tags.some((tag) => !tag.trim())) return { ok: false, reason: "A proposal tag is empty." };
   if (proposal.files.length === 0 || proposal.files.length > 20) return { ok: false, reason: "A proposal has 1 to 20 files." };
   const bytes = proposal.files.reduce((sum, file) => sum + Buffer.byteLength(file.content), 0);
   if (bytes > 200_000) return { ok: false, reason: "A proposal is larger than 200 KB." };

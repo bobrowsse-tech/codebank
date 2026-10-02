@@ -220,9 +220,9 @@ function gitFiles(repoRoot: string): string[] {
 
 function wanted(rel: string, ignore: string[]): boolean {
   if (!/\.(tsx|ts|jsx|js)$/.test(rel)) return false;
-  if (rel.split(/[/\\]/).some((part) => ignore.includes(part))) return false;
-  if (rel.endsWith(".d.ts") || rel.endsWith(".min.js")) return false;
-  if (/\.(test|spec)\.(tsx|ts|jsx|js)$/.test(rel) || rel.includes("__tests__") || rel.includes("/generated/")) return false;
+  const parts = rel.split(/[/\\]/);
+  if (parts.some((part) => ignore.includes(part) || part === "generated" || part === "__tests__")) return false;
+  if (rel.endsWith(".d.ts") || rel.endsWith(".min.js") || /\.(test|spec)\.(tsx|ts|jsx|js)$/.test(rel)) return false;
   return true;
 }
 

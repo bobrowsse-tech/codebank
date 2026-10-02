@@ -8,6 +8,7 @@ import {
   acceptCandidate,
   dismissCandidate,
   ensureHome,
+  isPackageDep,
   listCandidates,
   listEntries,
   loadConfig,
@@ -22,6 +23,7 @@ import {
   suggestRecall,
 } from "../src/index";
 import { withRequiredImports } from "../src/closure/extract";
+import { inCooldown } from "../src/recall/state";
 import { extractUnits } from "../src/mining/units";
 
 test("mining finds the planted clone and no false cluster", async () => {
@@ -216,6 +218,35 @@ test("a mined unit keeps the imports it uses", async () => {
   assert.match(candidate.files[0]?.content ?? "", /return rows\(\)/);
   const body = "export function greet(user: User) {\n  return user;\n}\n";
   assert.match(withRequiredImports(`import { type User } from "./types";\n${body}`, body), /import \{ type User \} from "\.\/types"/);
+  assert.match(withRequiredImports(`import type User from "./types";\n${body}`, body), /import type User from "\.\/types"/);
+  assert.equal(isPackageDep({ name: "typescript", range: "^18" }), true);
+  assert.equal(isPackageDep({ name: "lodash", range: "~1.2" }), true);
+  assert.equal(isPackageDep({ name: "lodash", range: "1.x" }), true);
+  assert.equal(isPackageDep({ name: "lodash", range: "^1; touch /tmp/x" }), false);
+});
+
+test("a root generated directory is not scanned", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-generated-"));
+  ensureHome(home);
+  const config = loadConfig(home);
+  config.recall.cooldownMinutes = 1;
+  saveConfig(home, config);
+  await noteDismissed(home, "repo", "filtering", "src/useFilters.ts");
+  assert.equal(inCooldown(home, "repo", "src/useFilters.ts"), true);
+  assert.equal(inCooldown(home, "repo", "src/useFilters.ts", Date.now() + 2 * 60_000), false);
+  const repo = repoWith({
+    "generated/client.ts": padded("clientRows", 12),
+    "src/keep.ts": padded("keepLocal", 12),
+  });
+  const result = await mine(home, { roots: [repo] });
+  assert.equal(result.files, 1);
+  const blank = await proposeCandidate(home, {
+    title: " ",
+    intent: "Missing a title.",
+    tags: [" "],
+    files: [{ relPath: "src/blank.ts", content: "export function blank() { return 1; }\n" }],
+  });
+  assert.equal(blank.ok, false);
 });
 
 test("a tracked symlink is not read", async () => {

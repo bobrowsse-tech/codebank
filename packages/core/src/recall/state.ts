@@ -100,7 +100,8 @@ export function isMuted(home: string, repoId: string, slug: string): boolean {
 
 export function inCooldown(home: string, repoId: string, filePath: string, now = Date.now()): boolean {
   const at = loadRecall(home).dismissedAt[`${repoId}:${filePath}`];
-  return at !== undefined && now - at < 10 * 60_000;
+  const minutes = loadConfig(home).recall.cooldownMinutes;
+  return at !== undefined && now - at < minutes * 60_000;
 }
 
 function adapt(home: string, state: RecallState): void {

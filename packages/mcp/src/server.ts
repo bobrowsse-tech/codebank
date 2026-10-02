@@ -49,7 +49,14 @@ const tools = [
             required: ["relPath", "content"],
           },
         },
-        deps: { type: "array", items: { type: "object", properties: { name: { type: "string" }, range: { type: "string" } } } },
+        deps: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { name: { type: "string" }, range: { type: "string" } },
+            required: ["name", "range"],
+          },
+        },
       },
       required: ["title", "intent", "tags", "files"],
     },

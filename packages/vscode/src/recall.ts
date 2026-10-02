@@ -6,7 +6,9 @@ import { previewEntry } from "./search.ts";
 const recentPastes = new Map<string, string>();
 
 export function registerRecall(context: vscode.ExtensionContext, homeOf: () => string): void {
+  const lenses = new vscode.EventEmitter<void>();
   context.subscriptions.push(
+    lenses,
     vscode.workspace.onDidChangeTextDocument((event) => {
       const key = event.document.uri.toString();
       const pasted = pastedText(event.contentChanges.map((change) => change.text));
@@ -14,6 +16,7 @@ export function registerRecall(context: vscode.ExtensionContext, homeOf: () => s
       else recentPastes.delete(key);
     }),
     vscode.languages.registerCodeLensProvider([{ language: "typescript" }, { language: "javascript" }, { language: "typescriptreact" }, { language: "javascriptreact" }], {
+      onDidChangeCodeLenses: lenses.event,
       provideCodeLenses(document) {
         const folder = vscode.workspace.getWorkspaceFolder(document.uri);
         const repo = folder ? describeRepo(folder.uri.fsPath) : undefined;
@@ -49,9 +52,11 @@ export function registerRecall(context: vscode.ExtensionContext, homeOf: () => s
     vscode.commands.registerCommand("codebank.preview", (slug: string) => previewEntry(homeOf(), slug)),
     vscode.commands.registerCommand("codebank.recallDismiss", async (repoId: string, slug: string, filePath: string) => {
       await noteDismissed(homeOf(), repoId, slug, filePath);
+      lenses.fire();
     }),
     vscode.commands.registerCommand("codebank.mute", async (repoId: string, slug: string) => {
       await muteRecall(homeOf(), repoId, slug);
+      lenses.fire();
     }),
   );
 }

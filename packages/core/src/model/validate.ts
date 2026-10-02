@@ -4,7 +4,7 @@ import { SchemaError } from "./types";
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,47}$/;
 const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
-const PACKAGE_RANGE = /^(?:\*|(?:[\^~]|>=|<=|>|<)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/;
+const PACKAGE_RANGE = /^(?:\*|(?:[\^~]|>=|<=|>|<)?(?:\d+(?:\.\d+){0,2}(?:\.x)?|\d+\.x(?:\.x)?)(?:-[0-9A-Za-z.-]+)?)$/;
 
 export function isPackageDep(dep: { name: string; range: string }): boolean {
   return PACKAGE_NAME.test(dep.name) && PACKAGE_RANGE.test(dep.range);

@@ -176,8 +176,10 @@ function importedNames(statement: string): string[] {
   }
   const star = statement.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
   if (star?.[1]) names.push(star[1]);
-  const def = statement.match(/import\s+([A-Za-z_$][\w$]*)\s*(?:,|from)/);
-  if (def?.[1] && def[1] !== "type") names.push(def[1]);
+  const typedDefault = statement.match(/import\s+type\s+([A-Za-z_$][\w$]*)\s+from/);
+  if (typedDefault?.[1]) names.push(typedDefault[1]);
+  const def = statement.match(/import\s+(?!type\b)([A-Za-z_$][\w$]*)\s*(?:,|from)/);
+  if (def?.[1]) names.push(def[1]);
   const required = statement.match(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require/);
   if (required?.[1]) names.push(required[1]);
   return names.filter((name) => /^[A-Za-z_$][\w$]*$/.test(name));
