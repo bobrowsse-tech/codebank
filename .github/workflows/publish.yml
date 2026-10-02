@@ -84,7 +84,7 @@ jobs:
             echo "::error::Add repository secret VSCE_PAT (Marketplace publish scope) before publishing."
             exit 1
           fi
-          vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' | head -n 1)"
+          vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' -print -quit)"
           npx --yes @vscode/vsce publish --packagePath "$vsix" -p "$VSCE_PAT"
 
       - name: Publish to Open VSX
@@ -96,7 +96,7 @@ jobs:
             echo "::error::Add repository secret OVSX_PAT from open-vsx.org before publishing."
             exit 1
           fi
-          vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' | head -n 1)"
+          vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' -print -quit)"
           npx --yes ovsx publish "$vsix" -p "$OVSX_PAT"
 
       - name: Publish the scoped CLI to npm
@@ -112,15 +112,22 @@ jobs:
             echo "packages/cli/package.json is missing. Skipping npm."
             exit 0
           fi
+          set +e
           node <<'EOF'
           const pkg = require("./packages/cli/package.json");
-          if (pkg.private) {
-            console.log("CLI package is private. Skipping npm.");
-            process.exit(0);
-          }
+          if (pkg.private) process.exit(10);
           if (!pkg.name || !pkg.name.startsWith("@")) {
             console.error(`Refusing to publish "${pkg.name || ""}". The unscoped name codebank is taken; choose a scope first.`);
             process.exit(1);
           }
           EOF
+          code=$?
+          set -e
+          if [ "$code" -eq 10 ]; then
+            echo "CLI package is private. Skipping npm."
+            exit 0
+          fi
+          if [ "$code" -ne 0 ]; then
+            exit "$code"
+          fi
           npm publish --workspace packages/cli --access public
