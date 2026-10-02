@@ -348,7 +348,7 @@ codebank get <slug> [--out dir]
 codebank add <file> --range 10:40 --title <title>
 codebank mine [--roots a,b] [--json]
 codebank inbox list | accept <id> | dismiss <id>
-codebank propose --title <title> --intent <intent> --files a.ts
+codebank propose --title <title> --intent <intent> --files a.ts b.ts
 codebank list
 codebank retire <slug>
 codebank doctor [--purge-usage]

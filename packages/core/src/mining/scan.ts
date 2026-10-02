@@ -80,12 +80,18 @@ export async function mine(
       clusters: 0,
     });
   }
+  await new Promise((resolve) => setImmediate(resolve));
   if (options.signal?.aborted) return finish(home, [], files, repos.length, 0, started, true);
-  const clusters = clusterUnits(units, options.signal);
+  const clusters = await clusterUnits(units, options.signal);
   if (!clusters || options.signal?.aborted) return finish(home, [], files, repos.length, 0, started, true);
   const admitted = clusters.filter(admit);
   const candidates = emitCandidates(home, admitted).slice(0, 50);
-  for (const candidate of candidates) await writeCandidate(home, candidate);
+  const saved: Candidate[] = [];
+  for (const candidate of candidates) {
+    if (options.signal?.aborted) return finish(home, saved, files, repos.length, admitted.length, started, true);
+    await writeCandidate(home, candidate);
+    saved.push(candidate);
+  }
   options.onProgress?.({
     repo: "",
     reposDone: repos.length,
@@ -221,7 +227,9 @@ function gitFiles(repoRoot: string): string[] {
 function wanted(rel: string, ignore: string[]): boolean {
   if (!/\.(tsx|ts|jsx|js)$/.test(rel)) return false;
   const parts = rel.split(/[/\\]/);
-  if (parts.some((part) => ignore.includes(part) || part === "generated" || part === "__tests__")) return false;
+  const normalized = parts.join("/");
+  if (ignore.some((item) => item === normalized || parts.includes(item))) return false;
+  if (parts.some((part) => part === "generated" || part === "__tests__")) return false;
   if (rel.endsWith(".d.ts") || rel.endsWith(".min.js") || /\.(test|spec)\.(tsx|ts|jsx|js)$/.test(rel)) return false;
   return true;
 }
@@ -233,7 +241,7 @@ function siblingTest(rel: string, names: Set<string>): boolean {
   return [".test.ts", ".test.tsx", ".test.js", ".test.jsx", ".spec.ts", ".spec.tsx", ".spec.js", ".spec.jsx"].some((ext) => names.has(`${prefix}${base}${ext}`));
 }
 
-function clusterUnits(units: FoundUnit[], signal?: AbortSignal): FoundUnit[][] | undefined {
+async function clusterUnits(units: FoundUnit[], signal?: AbortSignal): Promise<FoundUnit[][] | undefined> {
   const parent = units.map((_, index) => index);
   const find = (index: number): number => {
     let cursor = index;
@@ -271,8 +279,13 @@ function clusterUnits(units: FoundUnit[], signal?: AbortSignal): FoundUnit[][] |
     }
   });
   const seen = new Set<string>();
+  let steps = 0;
   for (const bucket of buckets.values()) {
-    if (signal?.aborted) return undefined;
+    if (steps++ % 1024 === 0) {
+      if (signal?.aborted) return undefined;
+      await new Promise((resolve) => setImmediate(resolve));
+      if (signal?.aborted) return undefined;
+    }
     if (bucket.length < 2 || bucket.length > 32) continue;
     for (let left = 0; left < bucket.length; left += 1) {
       for (let right = left + 1; right < bucket.length; right += 1) {

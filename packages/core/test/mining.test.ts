@@ -244,13 +244,14 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-ignore-"));
   ensureHome(home);
   const config = loadConfig(home);
-  config.scan.ignore = [...config.scan.ignore, "skipme"];
+  config.scan.ignore = [...config.scan.ignore, "skipme", "src/omit.ts"];
   saveConfig(home, config);
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-ignore-repo-"));
   fs.mkdirSync(path.join(repo, "src"));
   fs.mkdirSync(path.join(repo, "skipme"));
   fs.writeFileSync(path.join(repo, "src", "keep.jsx"), padded("keepRows", 20));
   fs.writeFileSync(path.join(repo, "src", "keep.test.jsx"), "test('keep', () => {});\n");
+  fs.writeFileSync(path.join(repo, "src", "omit.ts"), padded("omitRows", 20));
   fs.writeFileSync(path.join(repo, "skipme", "hide.ts"), padded("hideRows", 20));
   execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
   execFileSync("git", ["add", "-A"], { cwd: repo, stdio: "ignore" });
@@ -268,6 +269,14 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   });
   assert.equal(cancelled.cancelled, true);
   assert.equal(listCandidates(cancelledHome).length, 0);
+  const early = new AbortController();
+  const earlyHome = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-cancel-early-"));
+  ensureHome(earlyHome);
+  const pending = mine(earlyHome, { roots: [repo], signal: early.signal });
+  setImmediate(() => early.abort());
+  const stopped = await pending;
+  assert.equal(stopped.cancelled, true);
+  assert.equal(listCandidates(earlyHome).length, 0);
 });
 
 test("a mined unit keeps the imports it uses", async () => {
