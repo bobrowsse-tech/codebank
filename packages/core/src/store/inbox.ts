@@ -9,7 +9,7 @@ import { isPackageDep, problemsForCandidate, problemsForFiles, toSlug } from "..
 import { scanSecrets } from "../security/secrets";
 import { atomicWriteJson, readJson } from "./atomic";
 import { withLock } from "./lock";
-import { saveEntry, type SaveOutcome } from "./entries";
+import { saveEntryHeld, type SaveOutcome } from "./entries";
 import { assertSafeRelPath, bankPaths } from "./paths";
 
 export function listCandidates(home: string): Candidate[] {
@@ -73,28 +73,30 @@ export async function dismissCandidate(home: string, id: string): Promise<boolea
 }
 
 export async function acceptCandidate(home: string, id: string): Promise<SaveOutcome | { ok: false; reason: "missing" }> {
-  const candidate = readCandidate(home, id);
-  if (!candidate) return { ok: false, reason: "missing" };
-  const outcome = await saveEntry(
-    home,
-    {
-      slug: candidate.draft.slug,
-      title: candidate.draft.title,
-      language: candidate.draft.language,
-      entryFile: candidate.draft.entryFile,
-      symbols: candidate.draft.symbols,
-      tags: candidate.draft.tags,
-      intent: candidate.draft.intent,
-      whenNot: candidate.draft.whenNot,
-      deps: candidate.draft.deps,
-      origin: candidate.draft.origin,
-      ownership: candidate.draft.ownership,
-    },
-    candidate.files,
-  );
-  if (outcome.ok) removeCandidate(home, id);
-  logStage("inbox", "out", { accepted: id, ok: outcome.ok });
-  return outcome;
+  return withLock(bankPaths(home).lock, () => {
+    const candidate = readCandidate(home, id);
+    if (!candidate) return { ok: false, reason: "missing" };
+    const outcome = saveEntryHeld(
+      home,
+      {
+        slug: candidate.draft.slug,
+        title: candidate.draft.title,
+        language: candidate.draft.language,
+        entryFile: candidate.draft.entryFile,
+        symbols: candidate.draft.symbols,
+        tags: candidate.draft.tags,
+        intent: candidate.draft.intent,
+        whenNot: candidate.draft.whenNot,
+        deps: candidate.draft.deps,
+        origin: candidate.draft.origin,
+        ownership: candidate.draft.ownership,
+      },
+      candidate.files,
+    );
+    if (outcome.ok) removeCandidate(home, id);
+    logStage("inbox", "out", { accepted: id, ok: outcome.ok });
+    return outcome;
+  });
 }
 
 function primaryExport(content: string): string | undefined {

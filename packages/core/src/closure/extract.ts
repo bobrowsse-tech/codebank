@@ -170,7 +170,7 @@ function importedNames(statement: string): string[] {
     for (const part of named[1].split(",")) {
       const piece = part.trim();
       if (!piece) continue;
-      const alias = piece.split(/\s+as\s+/);
+      const alias = piece.replace(/^type\s+/, "").split(/\s+as\s+/);
       names.push((alias[1] ?? alias[0]).trim());
     }
   }

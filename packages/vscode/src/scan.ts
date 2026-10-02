@@ -23,7 +23,13 @@ export function scanFolders(homeOf: () => string, onDone: () => void): void {
   render("scanning", `Looking through ${roots.length} roots.`);
   const inspected = vscode.workspace.getConfiguration("codebank").inspect<string[]>("scan.ignore");
   const ignore = inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
-  worker = new Worker(path.join(__dirname, "mine-worker.js"), { workerData: { home: homeOf(), roots, ignore } });
+  try {
+    worker = new Worker(path.join(__dirname, "mine-worker.js"), { workerData: { home: homeOf(), roots, ignore } });
+  } catch (error) {
+    render("error", error instanceof Error ? error.message : "The scan failed.");
+    return;
+  }
+  worker.on("error", (error) => render("error", error.message));
   worker.on("message", (message: { type: string; progress?: MineProgress; result?: MineResult; message?: string }) => {
     if (message.type === "progress" && message.progress) {
       const progress = message.progress;

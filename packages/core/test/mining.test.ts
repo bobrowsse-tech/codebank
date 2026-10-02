@@ -21,6 +21,7 @@ import {
   saveEntry,
   suggestRecall,
 } from "../src/index";
+import { withRequiredImports } from "../src/closure/extract";
 import { extractUnits } from "../src/mining/units";
 
 test("mining finds the planted clone and no false cluster", async () => {
@@ -213,6 +214,8 @@ test("a mined unit keeps the imports it uses", async () => {
   assert.ok(candidate);
   assert.match(candidate.files[0]?.content ?? "", /import \{ rows \} from "\.\/rows"/);
   assert.match(candidate.files[0]?.content ?? "", /return rows\(\)/);
+  const body = "export function greet(user: User) {\n  return user;\n}\n";
+  assert.match(withRequiredImports(`import { type User } from "./types";\n${body}`, body), /import \{ type User \} from "\.\/types"/);
 });
 
 test("a tracked symlink is not read", async () => {
