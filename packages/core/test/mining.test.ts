@@ -54,6 +54,14 @@ test("an agent proposal stays in the inbox until it is accepted", async () => {
   assert.deepEqual(fs.readdirSync(project), before);
   if (!proposed.ok) return;
   assert.equal(proposed.candidate.proposedBy, "agent");
+  assert.equal(proposed.candidate.draft.symbols[0], "formatCurrency");
+  const unnamed = proposeCandidate(home, {
+    title: "No export",
+    intent: "Missing a name.",
+    tags: [],
+    files: [{ relPath: "src/plain.ts", content: "const value = 1;\n" }],
+  });
+  assert.equal(unnamed.ok, false);
   const blocked = proposeCandidate(home, {
     title: "Leaked",
     intent: "nope",

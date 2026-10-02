@@ -94,6 +94,15 @@ export async function acceptCandidate(home: string, id: string): Promise<SaveOut
   return outcome;
 }
 
+function primaryExport(content: string): string | undefined {
+  const declared = content.match(/export\s+(?:async\s+)?(?:function|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][\w$]*)/);
+  if (declared) return declared[1];
+  const named = content.match(/export\s*\{([^}]+)\}/);
+  const first = named?.[1].split(",")[0]?.trim().split(/\s+as\s+/).pop()?.trim();
+  if (first && /^[A-Za-z_$][\w$]*$/.test(first)) return first;
+  return content.match(/export\s+default\s+(?:async\s+)?(?:function|class)\s+([A-Za-z_$][\w$]*)/)?.[1];
+}
+
 export interface Proposal {
   title: string;
   intent: string;
@@ -117,6 +126,8 @@ export function proposeCandidate(home: string, proposal: Proposal): { ok: true; 
   }
   const findings = scanSecrets(proposal.files.map((file) => file.content).join("\n")).filter((finding) => finding.severity === "block");
   if (findings.length > 0) return { ok: false, reason: "A proposal contains a secret." };
+  const symbol = primaryExport(proposal.files[0].content);
+  if (!symbol) return { ok: false, reason: "A proposal needs an exported name." };
   const id = createHash("sha256").update(`${proposal.title}\n${contentHash(proposal.files)}`).digest("hex").slice(0, 16);
   const candidate: Candidate = {
     schema: 1,
@@ -129,7 +140,7 @@ export function proposeCandidate(home: string, proposal: Proposal): { ok: true; 
       contentHash: contentHash(proposal.files),
       language: languageFromFile(proposal.files[0].relPath),
       entryFile: proposal.files[0].relPath,
-      symbols: [toSlug(proposal.title)],
+      symbols: [symbol],
       tags: proposal.tags.map((tag) => tag.toLowerCase()).slice(0, 8),
       intent: proposal.intent,
       whenNot: proposal.whenNot,
