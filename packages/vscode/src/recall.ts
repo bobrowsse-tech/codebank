@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { describeRepo, suggestRecall } from "../../core/src/index.ts";
+import { describeRepo, pastedText, suggestRecall } from "../../core/src/index.ts";
 import { muteRecall, noteDismissed, noteShown } from "../../core/src/recall/state.ts";
 import { previewEntry } from "./search.ts";
 
@@ -8,9 +8,10 @@ const recentPastes = new Map<string, string>();
 export function registerRecall(context: vscode.ExtensionContext, homeOf: () => string): void {
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
-      const inserted = event.contentChanges.map((change) => change.text).filter((text) => text.split("\n").length >= 12);
-      if (inserted.length === 0) return;
-      recentPastes.set(event.document.uri.toString(), inserted[inserted.length - 1]);
+      const key = event.document.uri.toString();
+      const pasted = pastedText(event.contentChanges.map((change) => change.text));
+      if (pasted) recentPastes.set(key, pasted);
+      else recentPastes.delete(key);
     }),
     vscode.languages.registerCodeLensProvider([{ language: "typescript" }, { language: "javascript" }, { language: "typescriptreact" }, { language: "javascriptreact" }], {
       provideCodeLenses(document) {

@@ -24,7 +24,7 @@ export { listCandidates, readCandidate, acceptCandidate, dismissCandidate, propo
 export type { Proposal } from "./store/inbox";
 export { mine, machineSummary } from "./mining/scan";
 export type { MineProgress, MineResult } from "./mining/scan";
-export { suggestRecall } from "./recall/suggest";
+export { pastedText, suggestRecall } from "./recall/suggest";
 export type { RecallSuggestion } from "./recall/suggest";
 export { noteShown, noteDismissed, noteAccepted, muteRecall } from "./recall/state";
 export { applyInsert, markerLine, planInsert } from "./insert/plan";

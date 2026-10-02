@@ -14,6 +14,7 @@ import {
   mine,
   noteDismissed,
   noteShown,
+  pastedText,
   proposeCandidate,
   readUsage,
   saveConfig,
@@ -141,6 +142,9 @@ test("an empty useFilters file suggests the filtering entry and unrelated names 
     readUsage(home).map((event) => event.kind),
     ["shown", "dismissed"],
   );
+  const pasted = Array.from({ length: 12 }, () => "export const rows = 1;").join("\n");
+  assert.equal(pastedText([pasted]), pasted);
+  assert.equal(pastedText(["export const rows = 1;"]), undefined);
   const started = Date.now();
   for (let minute = 0; minute < 30; minute += 1) {
     const unrelated = suggestRecall(home, {
@@ -197,6 +201,23 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   });
   assert.equal(cancelled.cancelled, true);
   assert.equal(listCandidates(cancelledHome).length, 0);
+});
+
+test("a tracked symlink is not read", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-link-home-"));
+  ensureHome(home);
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-outside-"));
+  const outsideFile = path.join(outside, "secret.ts");
+  fs.writeFileSync(outsideFile, padded("outsideRows", 12));
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-link-repo-"));
+  fs.mkdirSync(path.join(repo, "src"));
+  fs.writeFileSync(path.join(repo, "src", "local.ts"), padded("localRows", 12));
+  fs.symlinkSync(outsideFile, path.join(repo, "src", "linked.ts"));
+  execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+  execFileSync("git", ["add", "-A"], { cwd: repo, stdio: "ignore" });
+  const result = await mine(home, { roots: [repo] });
+  assert.equal(result.files, 1);
+  assert.equal(JSON.stringify(listCandidates(home)).includes("outsideRows"), false);
 });
 
 test("secrets and private functions stay out of the inbox", async () => {

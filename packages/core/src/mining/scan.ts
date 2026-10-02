@@ -131,7 +131,13 @@ function findRepos(roots: string[], ignore: string[]): string[] {
 }
 
 function walk(dir: string, depth: number, found: Set<string>, ignore: string[]): void {
-  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return;
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(dir);
+  } catch {
+    return;
+  }
+  if (!stat.isDirectory()) return;
   if (fs.existsSync(path.join(dir, ".git"))) {
     found.add(dir);
     return;
@@ -140,7 +146,14 @@ function walk(dir: string, depth: number, found: Set<string>, ignore: string[]):
   for (const name of fs.readdirSync(dir)) {
     if (ignore.includes(name) || name === ".git") continue;
     const full = path.join(dir, name);
-    if (fs.statSync(full).isDirectory()) walk(full, depth + 1, found, ignore);
+    let child: fs.Stats;
+    try {
+      child = fs.lstatSync(full);
+    } catch {
+      continue;
+    }
+    if (child.isSymbolicLink() || !child.isDirectory()) continue;
+    walk(full, depth + 1, found, ignore);
   }
 }
 
@@ -156,9 +169,13 @@ async function collectRepo(repoRoot: string, units: FoundUnit[], maxFileKB: numb
     }
     if (!wanted(rel, ignore)) continue;
     const abs = path.join(repoRoot, rel);
-    if (!fs.existsSync(abs)) continue;
-    const stat = fs.statSync(abs);
-    if (!stat.isFile() || stat.size > maxFileKB * 1024) continue;
+    let stat: fs.Stats;
+    try {
+      stat = fs.lstatSync(abs);
+    } catch {
+      continue;
+    }
+    if (stat.isSymbolicLink() || !stat.isFile() || stat.size > maxFileKB * 1024) continue;
     count += 1;
     const source = fs.readFileSync(abs, "utf8");
     const hasTest = siblingTest(rel, names);

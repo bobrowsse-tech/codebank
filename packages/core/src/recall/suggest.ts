@@ -19,6 +19,11 @@ export interface RecallSuggestion {
 
 const VERBS = ["implement", "add", "write", "need", "todo"];
 
+export function pastedText(changes: string[]): string | undefined {
+  const inserted = changes.filter((text) => text.split("\n").length >= 12);
+  return inserted.length === 0 ? undefined : inserted[inserted.length - 1];
+}
+
 export function suggestRecall(
   home: string,
   input: { filePath: string; text: string; repoId: string; targetOrg?: string; now?: number; enabled?: boolean; threshold?: number; pasted?: string },
