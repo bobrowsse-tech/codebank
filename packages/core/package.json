@@ -1,0 +1,13 @@
+{
+  "name": "@bobrowsse-tech/codebank-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared Codebank implementation. No VS Code import.",
+  "license": "MIT",
+  "author": "Bob Rowsse Walakira <hello@bobrowsse.com>",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "types": "./src/index.ts"
+}

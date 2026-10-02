@@ -2,7 +2,15 @@
 
 Codebank is a local-first VS Code extension, CLI, and MCP server that banks reusable code and recalls it in any project. Entries are plain files under `~/.codebank/`. Nothing is sent over the network, and nothing is written into a project until you accept it.
 
-The repository is public and licensed under MIT. Implementation follows `spec/CODEBANK-SPEC.md`, milestones M1 through M4, each shippable on its own. M1 is next: deposit, search, and insert.
+The repository is public and licensed under MIT. Implementation follows `spec/CODEBANK-SPEC.md`, milestones M1 through M4, each shippable on its own.
+
+## Three steps
+
+1. Select a function and run **Codebank: Deposit Selection**.
+2. Run **Codebank: Search** and pick a result.
+3. Insert it. Codebank writes the files and can type an install command into a terminal without running it.
+
+From a terminal, the same bank is `codebank add`, `codebank search`, and `codebank get`.
 
 ## Repository rules
 

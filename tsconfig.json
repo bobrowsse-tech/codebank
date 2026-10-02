@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "vscode"]
+  },
+  "include": [
+    "packages/core/src/**/*.ts",
+    "packages/core/test/**/*.ts",
+    "packages/cli/src/**/*.ts",
+    "packages/cli/test/**/*.ts",
+    "packages/vscode/src/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "dist-tests"]
+}

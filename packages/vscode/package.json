@@ -1,0 +1,101 @@
+{
+  "name": "codebank",
+  "displayName": "Codebank",
+  "publisher": "bobrowsse-tech",
+  "version": "0.1.0",
+  "description": "Bank reusable code locally and recall it in any project.",
+  "license": "MIT",
+  "author": "Bob Rowsse Walakira <hello@bobrowsse.com>",
+  "private": true,
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": ["Other", "AI"],
+  "activationEvents": ["onStartupFinished", "onView:codebank.bank"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "codebank.deposit", "title": "Codebank: Deposit Selection" },
+      { "command": "codebank.search", "title": "Codebank: Search" },
+      { "command": "codebank.insert", "title": "Codebank: Insert…" },
+      { "command": "codebank.retire", "title": "Retire Entry" },
+      { "command": "codebank.rebuildIndex", "title": "Codebank: Rebuild Index" },
+      { "command": "codebank.openHome", "title": "Codebank: Reveal Bank Folder" }
+    ],
+    "keybindings": [
+      { "command": "codebank.deposit", "key": "ctrl+alt+b", "mac": "cmd+alt+b", "when": "editorHasSelection" },
+      { "command": "codebank.search", "key": "ctrl+alt+shift+b", "mac": "cmd+alt+shift+b" }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "codebank", "title": "Codebank", "icon": "media/icon.svg" }
+      ]
+    },
+    "views": {
+      "codebank": [
+        { "id": "codebank.bank", "name": "Bank" },
+        { "id": "codebank.inbox", "name": "Inbox" },
+        { "id": "codebank.updates", "name": "Updates" }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        { "command": "codebank.deposit", "when": "editorHasSelection", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "codebank.insert", "when": "view == codebank.bank && viewItem == entry", "group": "inline" },
+        { "command": "codebank.retire", "when": "view == codebank.bank && viewItem == entry" }
+      ]
+    },
+    "configuration": {
+      "title": "Codebank",
+      "properties": {
+        "codebank.home": { "type": "string", "default": "", "description": "Bank folder. Empty uses ~/.codebank." },
+        "codebank.insertDir": { "type": "string", "default": "src/codebank", "description": "Folder inside the project where an inserted entry is written." },
+        "codebank.recall.enabled": { "type": "boolean", "default": true },
+        "codebank.recall.threshold": { "type": "number", "default": 0.72, "minimum": 0, "maximum": 1 },
+        "codebank.lineage.mode": { "type": "string", "enum": ["marker", "external"], "default": "marker" },
+        "codebank.scan.roots": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "codebank.scan.ignore": { "type": "array", "items": { "type": "string" }, "default": ["node_modules", ".git", "dist", "build", ".next"] }
+      }
+    },
+    "languageModelTools": [
+      {
+        "name": "codebank_search",
+        "displayName": "Codebank",
+        "toolReferenceName": "codebank",
+        "canBeReferencedInPrompt": true,
+        "tags": ["codebank"],
+        "modelDescription": "Search the user's personal bank of previously written, reusable solutions. Call this before writing any non-trivial utility, hook, component or helper, and use a match instead of writing new code.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "What the code should do." },
+            "limit": { "type": "number", "minimum": 1, "maximum": 8, "default": 3 },
+            "language": { "type": "string" }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "codebank_get",
+        "displayName": "Codebank get",
+        "toolReferenceName": "codebankGet",
+        "canBeReferencedInPrompt": true,
+        "tags": ["codebank"],
+        "modelDescription": "Read one banked solution by slug. Returns the closure, dependencies, and whether the copy should be adapted.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "slug": { "type": "string" },
+            "mode": { "type": "string", "enum": ["inspect", "insert-plan"] }
+          },
+          "required": ["slug"]
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "package": "vsce package --no-dependencies --allow-missing-repository -o ../../codebank.vsix"
+  }
+}

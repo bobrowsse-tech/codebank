@@ -464,7 +464,7 @@ Publishing runs from `.github/workflows/publish.yml` when a maintainer publishes
 | --- | --- | --- |
 | Repo policy | Public repo `bobrowsse-tech/codebank`. `main` is locked: a pull request is required, CI is required, force-push and deletion are blocked, and admins do not bypass the rules. Only collaborators with write access can open pull requests. | Decided 2 Oct 2026 |
 | License | MIT | Decided 2 Oct 2026 with the open-source choice |
-| Names and publisher | Placeholder scope `@your-scope/codebank` for the CLI | Unscoped npm `codebank` is a dormant 2017 package, so npm publish refuses an unscoped name. The GitHub repository name is decided. The Marketplace publisher id is still open |
+| Names and publisher | Publisher `bobrowsse-tech`. Extension id `bobrowsse-tech.codebank`. CLI `@bobrowsse-tech/codebank`. Author `Bob Rowsse Walakira <hello@bobrowsse.com>` | Decided from the owner identity. Unscoped npm `codebank` stays refused |
 | MCP implementation | Hand-written, per the zero-dependency rule | If the spec drifts, the official SDK is the single allowed exception, recorded here |
 | jsrepo compatibility | Own format | Evaluate in M3 only if jsrepo supports a purely local registry; not verified |
 | Minimum VS Code | `^1.101.0` | Required for the MCP provider API listing; lower is possible if that API is dropped |

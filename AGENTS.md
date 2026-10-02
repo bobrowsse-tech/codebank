@@ -10,5 +10,5 @@ Codebank is a VS Code extension, CLI and MCP server that banks your reusable cod
 
 ## Notes for agents
 - Section 7 of the spec lists screens S1 to S8; the files in `ui/` are the visual reference. Colors map to VS Code theme variables (see Tokens). Never hard-code hex values in the extension.
-- Open decisions are in section 10 of the spec. Repo policy and license are decided: public MIT repository, `main` locked to maintainer pull requests. Publisher scope and the Marketplace publisher id are still open. Ask the owner before deciding the remaining rows.
+- Open decisions are in section 10 of the spec. Repo policy, license, and publisher are decided: public MIT repository, `main` locked to maintainer pull requests, publisher `bobrowsse-tech`, extension id `bobrowsse-tech.codebank`, CLI `@bobrowsse-tech/codebank`. Ask the owner before deciding the remaining rows.
 - The spec's architecture diagram is not in this markdown export. It shows three front ends (`packages/cli`, `packages/mcp`, `packages/vscode`) sharing `packages/core` and one folder of plain files at `~/.codebank/`.
