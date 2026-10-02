@@ -3,6 +3,7 @@ import {
   ensureHome,
   loadConfig,
   originFor,
+  readEntry,
   resolveOwnership,
   saveConfig,
   saveEntry,
@@ -12,6 +13,7 @@ import {
   type ClosureResult,
 } from "../../core/src/index.ts";
 import { closeSelection } from "./closure.ts";
+import { previewEntry } from "./search.ts";
 
 export async function depositSelection(homeOf: () => string, onSaved: () => void): Promise<void> {
   const editor = vscode.window.activeTextEditor;
@@ -22,28 +24,31 @@ export async function depositSelection(homeOf: () => string, onSaved: () => void
   const closure = await closeSelection(editor.document, editor.selection);
   const home = homeOf();
   const config = ensureHome(home);
-  const findings = scanSecrets(closure.files.map((file) => file.content).join("\n")).filter((finding) => finding.severity === "block");
+  const origin = originFor(
+    editor.document.fileName,
+    closure.entryFile,
+    { startLine: editor.selection.start.line + 1, endLine: editor.selection.end.line + 1 },
+    "manual",
+  );
+  const ownership = resolveOwnership(origin.org, config);
+  const scanned = scanSecrets(closure.files.map((file) => file.content).join("\n"));
+  const findings = scanned.filter((finding) => finding.severity === "block");
+  const warnings = scanned.filter((finding) => finding.severity === "warn");
   const findingHashes = findings.map((finding) => finding.hash);
-  const draft = await draftCard(closure, config.model.consented, home);
+  const draft = await draftCard(closure, home, ownership === "personal" && findings.length === 0);
   const panel = vscode.window.createWebviewPanel("codebank.deposit", "Codebank: Deposit", vscode.ViewColumn.Beside, {
     enableScripts: true,
     retainContextWhenHidden: true,
   });
   const nonce = Math.random().toString(36).slice(2);
-  panel.webview.html = depositHtml(panel.webview, nonce, closure, draft, findings.map((finding) => finding.kind), findingHashes);
+  panel.webview.html = depositHtml(panel.webview, nonce, closure, draft, findings.map((finding) => finding.kind), warnings.map((finding) => finding.kind), findingHashes, ownership);
   panel.webview.onDidReceiveMessage(async (message: DepositMessage) => {
     if (message.type === "cancel") {
       panel.dispose();
       return;
     }
     if (message.type !== "save") return;
-    const origin = originFor(
-      editor.document.fileName,
-      closure.entryFile,
-      { startLine: editor.selection.start.line + 1, endLine: editor.selection.end.line + 1 },
-      "manual",
-    );
-    const similar = searchScored(home, `${message.title} ${closure.symbols.join(" ")}`, 1)[0];
+    const similar = searchScored(home, `${message.title} ${closure.symbols.join(" ")}`, 1, { targetOrg: origin.org })[0];
     const outcome = await saveEntry(
       home,
       {
@@ -57,7 +62,7 @@ export async function depositSelection(homeOf: () => string, onSaved: () => void
         whenNot: message.whenNot || undefined,
         deps: closure.deps,
         origin,
-        ownership: message.ownership || resolveOwnership(origin.org, loadConfig(home)),
+        ownership: message.ownership,
         secretOverrides: message.overrides,
       },
       closure.files,
@@ -76,11 +81,15 @@ export async function depositSelection(homeOf: () => string, onSaved: () => void
         "Save as variant",
         "Replace as new version",
       );
+      if (choice === "Open existing") {
+        await previewEntry(home, outcome.slug);
+        return;
+      }
       if (choice === "Save as variant" || choice === "Replace as new version") {
         const again = await saveEntry(
           home,
           {
-            slug: choice === "Replace as new version" ? outcome.slug : toSlug(message.title),
+            slug: choice === "Replace as new version" ? outcome.slug : freeSlug(home, message.title),
             title: message.title,
             language: closure.language,
             entryFile: closure.entryFile,
@@ -90,8 +99,9 @@ export async function depositSelection(homeOf: () => string, onSaved: () => void
             whenNot: message.whenNot || undefined,
             deps: closure.deps,
             origin,
-            ownership: message.ownership || resolveOwnership(origin.org, loadConfig(home)),
-            variantOf: { slug: outcome.slug, version: 1 },
+            ownership: message.ownership,
+            variantOf: { slug: outcome.slug, version: readEntry(home, outcome.slug)?.version ?? 1 },
+            secretOverrides: message.overrides,
           },
           closure.files,
           { mode: choice === "Replace as new version" ? "replace" : "variant" },
@@ -112,13 +122,14 @@ export async function depositSelection(homeOf: () => string, onSaved: () => void
   });
 }
 
-async function draftCard(closure: ClosureResult, consented: boolean, home: string): Promise<{ title: string; intent: string; whenNot: string; tags: string[] }> {
+async function draftCard(closure: ClosureResult, home: string, allowModel: boolean): Promise<{ title: string; intent: string; whenNot: string; tags: string[] }> {
   const fallback = {
     title: closure.symbols[0] ?? "entry",
     intent: "",
     whenNot: "",
     tags: [...closure.deps.map((dep) => dep.name.split("/").pop() ?? dep.name), ...closure.symbols.map((symbol) => symbol.toLowerCase())].slice(0, 8),
   };
+  if (!allowModel) return fallback;
   const config = loadConfig(home);
   if (!config.model.consented && config.model.family !== "declined") {
     const answer = await vscode.window.showInformationMessage(
@@ -130,7 +141,7 @@ async function draftCard(closure: ClosureResult, consented: boolean, home: strin
     config.model.family = answer === "Allow" ? "editor" : "declined";
     saveConfig(home, config);
   }
-  if (!consented && !config.model.consented) return fallback;
+  if (!config.model.consented) return fallback;
   try {
     const models = await vscode.lm.selectChatModels();
     const model = models[0];
@@ -150,7 +161,7 @@ async function askModel(model: vscode.LanguageModelChat, prompt: string): Promis
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return undefined;
   const json = JSON.parse(match[0]) as { title?: string; intent?: string; whenNot?: string; tags?: string[] };
-  if (!json.title || (json.intent ?? "").length > 280) return undefined;
+  if (!json.title || (json.intent ?? "").length > 280 || (json.whenNot ?? "").length > 280) return undefined;
   return {
     title: json.title,
     intent: json.intent ?? "",
@@ -169,10 +180,30 @@ interface DepositMessage {
   overrides: string[];
 }
 
-function depositHtml(webview: vscode.Webview, nonce: string, closure: ClosureResult, draft: { title: string; intent: string; whenNot: string; tags: string[] }, secrets: string[], findingHashes: string[]): string {
+function freeSlug(home: string, title: string): string {
+  const base = toSlug(title);
+  if (!readEntry(home, base)) return base;
+  for (let n = 2; n < 50; n += 1) {
+    const suffix = `-${n}`;
+    const candidate = `${base.slice(0, 48 - suffix.length)}${suffix}`;
+    if (!readEntry(home, candidate)) return candidate;
+  }
+  return base;
+}
+
+function depositHtml(
+  webview: vscode.Webview,
+  nonce: string,
+  closure: ClosureResult,
+  draft: { title: string; intent: string; whenNot: string; tags: string[] },
+  secrets: string[],
+  warnings: string[],
+  findingHashes: string[],
+  ownership: "personal" | "client" | "unknown",
+): string {
   const csp = `default-src 'none'; style-src ${webview.cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}'`;
   const files = closure.files.map((file) => `<li>${escapeHtml(file.relPath)}</li>`).join("");
-  const warnings = closure.warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("");
+  const closureNotes = closure.warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("");
   const blocked = secrets.length > 0;
   return `<!DOCTYPE html>
 <html lang="en">
@@ -205,8 +236,9 @@ function depositHtml(webview: vscode.Webview, nonce: string, closure: ClosureRes
   <section class="files" aria-label="Closure">
     <p>Closure: ${closure.files.length} files${closure.truncated ? " · truncated" : ""}</p>
     <ul>${files}</ul>
-    ${warnings}
+    ${closureNotes}
     ${blocked ? `<p>Secret found: ${secrets.map(escapeHtml).join(", ")}. Save stays disabled until you remove it or mark it a false positive.</p>` : `<p>Secret scan: clean. ${closure.files.length} files checked.</p>`}
+    ${warnings.length > 0 ? `<p>Warning: ${warnings.map(escapeHtml).join(", ")}.</p>` : ""}
   </section>
   <form class="stack" id="card">
     <label>Title <input id="title" value="${escapeHtml(draft.title)}" required></label>
@@ -215,9 +247,7 @@ function depositHtml(webview: vscode.Webview, nonce: string, closure: ClosureRes
     <label>Tags <input id="tags" value="${escapeHtml(draft.tags.join(" "))}"></label>
     <label>Ownership
       <select id="ownership">
-        <option value="personal">Personal</option>
-        <option value="client">Client</option>
-        <option value="unknown">Unknown</option>
+        ${(["personal", "client", "unknown"] as const).map((value) => `<option value="${value}"${value === ownership ? " selected" : ""}>${value}</option>`).join("")}
       </select>
     </label>
     ${blocked ? `<label><input type="checkbox" id="override"> Mark the finding as a false positive</label>` : ""}

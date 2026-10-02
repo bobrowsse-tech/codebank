@@ -27,6 +27,7 @@ export function heuristicClosure(filePath: string, range?: { startLine: number; 
   const seen = new Set<string>();
   const queue: { abs: string; rel: string; depth: number }[] = [{ abs: absStart, rel: entryRel, depth: 0 }];
   let truncated = false;
+  const bare = new Set<string>();
 
   while (queue.length > 0) {
     const current = queue.shift();
@@ -34,11 +35,16 @@ export function heuristicClosure(filePath: string, range?: { startLine: number; 
     seen.add(current.abs);
     if (!fs.existsSync(current.abs) || !fs.statSync(current.abs).isFile()) continue;
     const raw = fs.readFileSync(current.abs, "utf8");
-    const sliced = current.rel === entryRel && range ? sliceLines(raw, range) : raw;
-    const content = limitFile(sliced, warnings, current.rel);
+    const saved = current.rel === entryRel && range ? sliceLines(raw, range) : raw;
+    const content = limitFile(saved, warnings, current.rel);
     files.push({ relPath: current.rel, content });
-    if (current.depth >= tuning.closure.maxDepth) continue;
-    for (const specifier of relativeSpecifiers(content)) {
+    for (const name of bareSpecifiers(raw)) bare.add(name);
+    const specifiers = relativeSpecifiers(raw);
+    if (current.depth >= tuning.closure.maxDepth) {
+      if (specifiers.length > 0) truncated = true;
+      continue;
+    }
+    for (const specifier of specifiers) {
       const resolved = resolveRelative(path.dirname(current.abs), specifier);
       if (!resolved) {
         warnings.push(`import '${specifier}' in ${current.rel} was not included`);
@@ -48,7 +54,7 @@ export function heuristicClosure(filePath: string, range?: { startLine: number; 
     }
   }
 
-  const deps = packageDeps(path.resolve(filePath), files);
+  const deps = packageDeps(path.resolve(filePath), bare);
   const entry = files[0];
   const result: ClosureResult = {
     files,
@@ -59,7 +65,6 @@ export function heuristicClosure(filePath: string, range?: { startLine: number; 
     symbols: exportedSymbols(entry?.content ?? ""),
     entryFile: entry?.relPath ?? entryRel,
   };
-  void truncated;
   logStage("closure", "out", { files: result.files.length, deps: result.deps.map((dep) => dep.name), warnings: warnings.length });
   return result;
 }
@@ -99,11 +104,9 @@ function resolveRelative(fromDir: string, specifier: string): string | undefined
   return candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
 }
 
-function packageDeps(startFile: string, files: SourceFile[]): { name: string; range: string }[] {
+function packageDeps(startFile: string, names: Set<string>): { name: string; range: string }[] {
   const manifest = nearestPackageJson(path.dirname(startFile));
   const declared = readDependencyRanges(manifest);
-  const names = new Set<string>();
-  for (const file of files) for (const name of bareSpecifiers(file.content)) names.add(name);
   return [...names].map((name) => ({ name, range: declared.get(name) ?? "*" }));
 }
 

@@ -58,6 +58,9 @@ export async function saveEntry(
       return { ok: false, reason: "similar", slug: options.similarSlug, score: options.similarScore ?? 0 };
     }
   }
+  if (options.mode !== "replace" && readEntry(home, draft.slug)) {
+    return { ok: false, reason: "invalid", problems: [`An entry named ${draft.slug} already exists.`] };
+  }
 
   const now = new Date().toISOString();
   const existing = options.mode === "replace" ? readEntry(home, draft.slug) : undefined;
@@ -94,8 +97,10 @@ export async function saveEntry(
       atomicWriteJson(path.join(versionDir, "entry.json"), existing);
     }
     fs.mkdirSync(dir, { recursive: true });
+    const codeDir = path.join(dir, "code");
+    fs.rmSync(codeDir, { recursive: true, force: true });
     for (const file of files) {
-      atomicWrite(resolveInside(path.join(dir, "code"), file.relPath), file.content);
+      atomicWrite(resolveInside(codeDir, file.relPath), file.content);
     }
     atomicWrite(path.join(dir, "card.md"), cardMarkdown(entry));
     atomicWriteJson(path.join(dir, "entry.json"), entry);
@@ -134,15 +139,20 @@ export function listEntries(home: string): Entry[] {
 export function readEntryFiles(home: string, slug: string): SourceFile[] {
   const codeRoot = path.join(bankPaths(home).entries, slug, "code");
   if (!fs.existsSync(codeRoot)) return [];
+  const rootReal = fs.realpathSync(codeRoot);
   const files: SourceFile[] = [];
   const walk = (dir: string) => {
     for (const name of fs.readdirSync(dir)) {
       const full = path.join(dir, name);
-      if (fs.statSync(full).isDirectory()) walk(full);
-      else files.push({ relPath: path.relative(codeRoot, full), content: fs.readFileSync(full, "utf8") });
+      const real = fs.realpathSync(full);
+      if (real !== rootReal && !real.startsWith(rootReal + path.sep)) {
+        throw new Error(`Path escapes its folder: ${path.relative(codeRoot, full)}`);
+      }
+      if (fs.statSync(real).isDirectory()) walk(real);
+      else files.push({ relPath: path.relative(rootReal, real).split(path.sep).join("/"), content: fs.readFileSync(real, "utf8") });
     }
   };
-  walk(codeRoot);
+  walk(rootReal);
   return files;
 }
 

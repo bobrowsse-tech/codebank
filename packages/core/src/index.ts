@@ -14,7 +14,7 @@ export { describeRepo, originFor } from "./git/repo";
 export type { RepoInfo } from "./git/repo";
 export { contentHash } from "./closure/hash";
 export { normalize } from "./closure/normalize";
-export { searchBank, searchScored, loadIndex } from "./search/index";
+export { searchBank, searchScored, loadIndex, type SearchOptions } from "./search/index";
 export type { SearchHit } from "./search/index";
 export { tokenize } from "./search/tokenize";
 export { scanSecrets } from "./security/secrets";

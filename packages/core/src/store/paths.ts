@@ -30,15 +30,44 @@ export function assertSafeRelPath(relPath: string): void {
 
 export function resolveInside(root: string, relPath: string): string {
   assertSafeRelPath(relPath);
-  fs.mkdirSync(root, { recursive: true });
-  const rootReal = fs.realpathSync(root);
-  const target = path.resolve(rootReal, relPath);
-  const parent = path.dirname(target);
-  fs.mkdirSync(parent, { recursive: true });
-  const parentReal = fs.realpathSync(parent);
-  const staysInside = parentReal === rootReal || parentReal.startsWith(rootReal + path.sep);
-  if (!staysInside || !target.startsWith(rootReal + path.sep)) {
-    throw new Error(`Path escapes its folder: ${relPath}`);
+  const rootReal = realpathCreating(root);
+  const parts = relPath.split(/[\\/]/).filter((part) => part.length > 0);
+  let current = rootReal;
+  for (let index = 0; index < parts.length; index += 1) {
+    const next = path.join(current, parts[index]);
+    if (!fs.existsSync(next)) {
+      const parent = path.dirname(path.join(current, ...parts.slice(index)));
+      fs.mkdirSync(parent, { recursive: true });
+      const parentReal = fs.realpathSync(parent);
+      if (!contained(rootReal, parentReal)) throw new Error(`Path escapes its folder: ${relPath}`);
+      return path.join(parentReal, parts[parts.length - 1]);
+    }
+    const real = fs.realpathSync(next);
+    if (!contained(rootReal, real)) throw new Error(`Path escapes its folder: ${relPath}`);
+    if (index === parts.length - 1) return real;
+    if (!fs.statSync(real).isDirectory()) throw new Error(`Rejected path ${relPath}`);
+    current = real;
   }
-  return target;
+  throw new Error(`Rejected path ${relPath}`);
+}
+
+function realpathCreating(root: string): string {
+  const resolved = path.resolve(root);
+  let cursor = resolved;
+  const missing: string[] = [];
+  while (!fs.existsSync(cursor)) {
+    missing.push(path.basename(cursor));
+    const parent = path.dirname(cursor);
+    if (parent === cursor) throw new Error(`Rejected path ${root}`);
+    cursor = parent;
+  }
+  const ancestor = fs.realpathSync(cursor);
+  if (missing.length === 0) return ancestor;
+  const created = path.join(ancestor, ...missing.reverse());
+  fs.mkdirSync(created, { recursive: true });
+  return fs.realpathSync(created);
+}
+
+function contained(root: string, candidate: string): boolean {
+  return candidate === root || candidate.startsWith(root + path.sep);
 }

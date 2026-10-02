@@ -20,8 +20,11 @@ export function registerTools(homeOf: () => string): vscode.Disposable[] {
         const input = options.input as SearchInput;
         const limit = Math.min(8, Math.max(1, input.limit ?? 3));
         const home = homeOf();
-        let cards = searchBank(home, input.query, limit);
-        if (input.language) cards = cards.filter((card) => card.language === input.language);
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        const cards = searchBank(home, input.query, limit, {
+          language: input.language,
+          targetOrg: folder ? describeRepo(folder.uri.fsPath).org : undefined,
+        });
         appendUsage(home, { t: new Date().toISOString(), kind: "search", surface: "chat", query: input.query });
         const text = cards.length === 0 ? "No bank matches." : cards.map(cardLine).join("\n").slice(0, 3000);
         return new vscode.LanguageModelToolResult([new vscode.LanguageModelTextPart(text)]);

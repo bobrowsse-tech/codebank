@@ -10,6 +10,7 @@ import {
   heuristicClosure,
   planInsert,
   readEntry,
+  readEntryFiles,
   resolveOwnership,
   saveEntry,
   scanSecrets,
@@ -199,6 +200,83 @@ test("the lock is exclusive and a stale lock is removed", async () => {
   assert.equal(await withLock(lock, () => "recovered"), "recovered");
 });
 
+test("a ranged deposit keeps the selection and still follows imports above it", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-range-"));
+  fs.mkdirSync(path.join(root, "src"));
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { lodash: "^4.17.21" } }));
+  fs.writeFileSync(
+    path.join(root, "src", "kept.ts"),
+    ['import { helper } from "./helper";', 'import escape from "lodash";', "export function ignored() { return 1; }", "export function kept(text: string) { return helper(escape(text)); }", ""].join("\n"),
+  );
+  fs.writeFileSync(path.join(root, "src", "helper.ts"), "export function helper(value: string) { return value; }\n");
+  const closure = heuristicClosure(path.join(root, "src", "kept.ts"), { startLine: 4, endLine: 4 });
+  assert.ok(closure.files.some((file) => file.relPath.endsWith("helper.ts")));
+  const entry = closure.files.find((file) => file.relPath.endsWith("kept.ts"));
+  assert.equal(entry?.content.includes("ignored"), false);
+  assert.ok(closure.deps.some((dep) => dep.name === "lodash"));
+});
+
+test("an existing slug is not overwritten, a replacement drops stale files, and a symlink outside the bank is refused", async () => {
+  const home = tempHome();
+  ensureHome(home);
+  const first = await saveEntry(home, sampleDraft("same"), [{ relPath: "a.ts", content: "export const a = 1;\n" }, { relPath: "stale.ts", content: "export const stale = 1;\n" }]);
+  assert.equal(first.ok, true);
+  const collision = await saveEntry(home, sampleDraft("same"), [{ relPath: "b.ts", content: "export const b = 2;\n" }]);
+  assert.equal(collision.ok, false);
+  if (collision.ok) return;
+  assert.equal(collision.reason, "invalid");
+  assert.match(readEntryFiles(home, "same").map((file) => file.content).join("\n"), /const a/);
+
+  const replaced = await saveEntry(home, sampleDraft("same"), [{ relPath: "a.ts", content: "export const a = 3;\n" }], { mode: "replace" });
+  assert.equal(replaced.ok, true);
+  assert.deepEqual(readEntryFiles(home, "same").map((file) => file.relPath), ["a.ts"]);
+
+  const outside = path.join(os.tmpdir(), `codebank-outside-${Date.now()}.txt`);
+  fs.writeFileSync(outside, "outside");
+  fs.symlinkSync(outside, path.join(home, "entries", "same", "code", "link.ts"));
+  assert.throws(() => readEntryFiles(home, "same"), /escapes/);
+});
+
+test("insert stays inside the project, and a cursor insert is wrapped with an end marker", async () => {
+  const home = tempHome();
+  ensureHome(home);
+  const closure = heuristicClosure(workspace);
+  const saved = await saveEntry(home, draftFromClosure(closure), closure.files);
+  assert.equal(saved.ok, true);
+  if (!saved.ok) return;
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-project-"));
+  fs.mkdirSync(path.join(project, "src"));
+  const plan = planInsert({
+    entry: saved.entry,
+    files: closure.files,
+    mode: "add",
+    targetLanguage: "ts",
+    fromFile: path.join(project, "src", "app.ts"),
+    projectDir: project,
+    insertDir: "src/codebank",
+  });
+  assert.match(plan.importLine ?? "", /from '\.\/codebank\/filtering\/src\/filterRows'/);
+  assert.throws(() => applyInsert(project, "../outside", plan), /Rejected path|escapes/);
+  const cursor = planInsert({ entry: saved.entry, files: [closure.files[0]], mode: "cursor", targetLanguage: "ts" });
+  assert.match(cursor.files[0].content, /@codebank filtering v1/);
+  assert.match(cursor.files[0].content, /@codebank-end/);
+});
+
+test("client entries are hidden outside their organization", async () => {
+  const home = tempHome();
+  ensureHome(home);
+  await saveEntry(
+    home,
+    { ...sampleDraft("client-only"), ownership: "client", origin: { ...origin("client.ts"), org: "acme" } },
+    [{ relPath: "client.ts", content: "export const clientOnly = 1;\n" }],
+  );
+  await saveEntry(home, sampleDraft("personal-note"), [{ relPath: "note.ts", content: "export const personalNote = 1;\n" }]);
+  const elsewhere = searchBank(home, "client", 8, { targetOrg: "other" }).map((card) => card.slug);
+  assert.equal(elsewhere.includes("client-only"), false);
+  const homeOrg = searchBank(home, "client", 8, { targetOrg: "acme" }).map((card) => card.slug);
+  assert.ok(homeOrg.includes("client-only"));
+});
+
 test("slug helper stays inside the spec pattern", () => {
   assert.equal(toSlug("Filter Rows"), "filter-rows");
   assert.match(toSlug("!!!"), /^entry$/);
@@ -212,6 +290,21 @@ function origin(relPath: string) {
     relPath,
     range: { startLine: 1, endLine: 8 },
     capturedBy: "manual" as const,
+  };
+}
+
+function sampleDraft(slug: string) {
+  return {
+    slug,
+    title: slug,
+    language: "ts" as const,
+    entryFile: "a.ts",
+    symbols: [slug],
+    tags: [slug],
+    intent: `Intent for ${slug}.`,
+    deps: [],
+    origin: origin("a.ts"),
+    ownership: "personal" as const,
   };
 }
 

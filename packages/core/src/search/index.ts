@@ -23,6 +23,14 @@ interface StoredDoc {
   uses: number;
   lastUsedAt?: string;
   status: Entry["status"];
+  ownership: Entry["ownership"];
+  org?: string;
+  language: Entry["language"];
+}
+
+export interface SearchOptions {
+  targetOrg?: string;
+  language?: string;
 }
 
 interface IndexFile {
@@ -35,15 +43,15 @@ export interface SearchHit {
   score: number;
 }
 
-export function searchBank(home: string, query: string, limit: number): Card[] {
-  return searchScored(home, query, limit).map((hit) => hit.card);
+export function searchBank(home: string, query: string, limit: number, options: SearchOptions = {}): Card[] {
+  return searchScored(home, query, limit, options).map((hit) => hit.card);
 }
 
-export function searchScored(home: string, query: string, limit: number): SearchHit[] {
+export function searchScored(home: string, query: string, limit: number, options: SearchOptions = {}): SearchHit[] {
   logStage("search", "in", { query, limit });
   const index = loadIndex(home);
   const tokens = tokenize(query);
-  const active = index.docs.filter((doc) => doc.status !== "retired");
+  const active = index.docs.filter((doc) => doc.status !== "retired" && visible(doc, options));
   const documents: Bm25Document[] = active.map((doc) => ({ id: doc.slug, fields: doc.fields }));
   const raw = scoreBm25(documents, tokens);
   const bestRaw = Math.max(0, ...raw.values());
@@ -74,7 +82,7 @@ export function loadIndex(home: string): IndexFile {
   if (fs.existsSync(file)) {
     const cached = readJson<IndexFile>(file);
     requireSchema(cached, file);
-    if (sameMtimes(cached.docs, current)) return cached;
+    if (sameMtimes(cached.docs, current) && cached.docs.every((doc) => typeof doc.ownership === "string")) return cached;
   }
   const docs = current.map((item) => documentFor(home, item.slug, item.mtimeMs));
   const index = { schema: 1 as const, docs };
@@ -104,7 +112,7 @@ function sameMtimes(docs: StoredDoc[], current: { slug: string; mtimeMs: number 
 function documentFor(home: string, slug: string, mtimeMs: number): StoredDoc {
   const entry = readEntry(home, slug);
   if (!entry) {
-    return { slug, mtimeMs, fields: [], trigramText: slug, uses: 0, status: "retired" };
+    return { slug, mtimeMs, fields: [], trigramText: slug, uses: 0, status: "retired", ownership: "unknown", language: "other" };
   }
   const identifiers = tokenize(readEntryFiles(home, slug).map((file) => file.content).join("\n"));
   const fields: StoredField[] = [
@@ -124,7 +132,16 @@ function documentFor(home: string, slug: string, mtimeMs: number): StoredDoc {
     uses: entry.stats.uses,
     lastUsedAt: entry.stats.lastUsedAt,
     status: entry.status,
+    ownership: entry.ownership,
+    org: entry.origin.org,
+    language: entry.language,
   };
+}
+
+function visible(doc: StoredDoc, options: SearchOptions): boolean {
+  if (options.language && doc.language !== options.language) return false;
+  if (doc.ownership === "client") return doc.org !== undefined && doc.org === options.targetOrg;
+  return true;
 }
 
 function adjust(doc: StoredDoc, score: number): number {

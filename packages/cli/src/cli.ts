@@ -4,6 +4,7 @@ import { parseArgs } from "node:util";
 import {
   SchemaError,
   appendUsage,
+  describeRepo,
   ensureHome,
   heuristicClosure,
   languageFromFile,
@@ -65,7 +66,7 @@ async function search(argv: string[]): Promise<number> {
   }
   const home = ensureAndHome();
   const limit = Number(values.limit ?? 8);
-  const cards = searchBank(home, query, Number.isFinite(limit) ? limit : 8);
+  const cards = searchBank(home, query, Number.isFinite(limit) ? limit : 8, { targetOrg: describeRepo(process.cwd()).org });
   appendUsage(home, { t: new Date().toISOString(), kind: "search", surface: "cli", query });
   if (values.json) console.log(JSON.stringify(cards, null, 2));
   else if (cards.length === 0) console.log("No matches.");
@@ -112,7 +113,7 @@ async function add(argv: string[]): Promise<number> {
     allowPositionals: true,
   });
   const file = positionals[0];
-  if (!file || !values.title) {
+  if (!file || !values.title || !values.range) {
     console.error("Usage: codebank add <file> --range 10:40 --title <title>");
     return 1;
   }
@@ -126,7 +127,7 @@ async function add(argv: string[]): Promise<number> {
   const home = ensureAndHome();
   const config = ensureHome(home);
   const entryFile = closure.entryFile;
-  const origin = originFor(abs, entryFile, range ?? { startLine: 1, endLine: 1 }, "manual");
+  const origin = originFor(abs, entryFile, range, "manual");
   const outcome = await saveEntry(
     home,
     {
@@ -199,10 +200,11 @@ function ensureAndHome(): string {
   return home;
 }
 
-function parseRange(value: string | undefined): { startLine: number; endLine: number } | undefined {
-  if (!value) return undefined;
+function parseRange(value: string): { startLine: number; endLine: number } {
   const [start, end] = value.split(":").map((part) => Number(part));
-  if (!Number.isInteger(start) || !Number.isInteger(end)) throw new Error("Range must look like 10:40.");
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start) {
+    throw new Error("Range must look like 10:40, starting at line 1 or later.");
+  }
   return { startLine: start, endLine: end };
 }
 

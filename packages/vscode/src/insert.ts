@@ -6,7 +6,8 @@ export async function insertCommand(homeOf: () => string): Promise<void> {
   const home = homeOf();
   const query = await vscode.window.showInputBox({ prompt: "Which entry should be inserted?" });
   if (!query) return;
-  const cards = searchBank(home, query, 8);
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  const cards = searchBank(home, query, 8, { targetOrg: folder ? describeRepo(folder.uri.fsPath).org : undefined });
   const picked = await vscode.window.showQuickPick(cards.map((card) => ({ label: card.title, description: card.slug, slug: card.slug })));
   if (!picked) return;
   await insertSlug(home, picked.slug);
@@ -35,17 +36,21 @@ export async function insertSlug(home: string, slug: string): Promise<void> {
   const targetLanguage = editor ? languageFromFile(editor.document.fileName) : entry.language;
   const packageJson = vscode.Uri.joinPath(folder.uri, "package.json").fsPath;
   const repo = describeRepo(folder.uri.fsPath);
+  const insertDir = vscode.workspace.getConfiguration("codebank").get<string>("insertDir") || "src/codebank";
   let confirmed = false;
   const files = readEntryFiles(home, slug);
-  let plan = planInsert({
+  const planned = {
     entry,
     files,
     mode: mode.mode,
     targetLanguage,
     targetPackageJson: packageJson,
     targetOrg: repo.org,
-    confirmedCrossOrg: confirmed,
-  });
+    fromFile: editor?.document.fileName,
+    projectDir: folder.uri.fsPath,
+    insertDir,
+  };
+  let plan = planInsert({ ...planned, confirmedCrossOrg: confirmed });
   if (plan.blocked === "cross-org") {
     const choice = await vscode.window.showWarningMessage(
       `This entry is from ${entry.origin.org ?? "an unknown org"}.`,
@@ -54,7 +59,7 @@ export async function insertSlug(home: string, slug: string): Promise<void> {
     );
     if (choice !== "Insert anyway") return;
     confirmed = true;
-    plan = planInsert({ entry, files, mode: mode.mode, targetLanguage, targetPackageJson: packageJson, targetOrg: repo.org, confirmedCrossOrg: confirmed });
+    plan = planInsert({ ...planned, confirmedCrossOrg: confirmed });
   }
   if (mode.mode === "cursor") {
     if (!editor) {
@@ -67,14 +72,24 @@ export async function insertSlug(home: string, slug: string): Promise<void> {
     }
     const edit = new vscode.WorkspaceEdit();
     edit.insert(editor.document.uri, editor.selection.active, `${plan.files[0].content}\n`);
-    await vscode.workspace.applyEdit(edit);
+    if (!(await vscode.workspace.applyEdit(edit))) {
+      void vscode.window.showWarningMessage("The editor rejected the insert.");
+      return;
+    }
   } else {
-    const insertDir = vscode.workspace.getConfiguration("codebank").get<string>("insertDir") || "src/codebank";
-    applyInsert(folder.uri.fsPath, insertDir, plan);
+    try {
+      applyInsert(folder.uri.fsPath, insertDir, plan);
+    } catch (error) {
+      void vscode.window.showWarningMessage(error instanceof Error ? error.message : "Insert path was rejected.");
+      return;
+    }
     if (editor && plan.importLine) {
       const edit = new vscode.WorkspaceEdit();
       edit.insert(editor.document.uri, editor.selection.active, `${plan.importLine}\n`);
-      await vscode.workspace.applyEdit(edit);
+      if (!(await vscode.workspace.applyEdit(edit))) {
+        void vscode.window.showWarningMessage("The editor rejected the insert.");
+        return;
+      }
     }
   }
   await recordUse(home, slug, plan.verbatim);

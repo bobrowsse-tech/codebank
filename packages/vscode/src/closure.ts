@@ -28,7 +28,12 @@ export async function closeSelection(document: vscode.TextDocument, selection: v
     { uri: document.uri, range: toRange(expanded), depth: 0 },
   ];
   const seen = new Set<string>();
-  while (queue.length > 0 && files.size < 30) {
+  while (queue.length > 0) {
+    if (files.size >= 30) {
+      truncated = true;
+      warnings.push("Closure stopped at 30 files.");
+      break;
+    }
     const current = queue.shift();
     if (!current) break;
     const key = `${current.uri.toString()}:${current.range.start.line}`;
@@ -44,7 +49,10 @@ export async function closeSelection(document: vscode.TextDocument, selection: v
       warnings.push("Closure stopped at 60 KB.");
       break;
     }
-    if (current.depth >= 3) continue;
+    if (current.depth >= 3) {
+      if (freeIdentifiers(text).length > 0) truncated = true;
+      continue;
+    }
     for (const name of freeIdentifiers(text)) {
       const defs = await vscode.commands.executeCommand<Array<vscode.Location | vscode.LocationLink>>(
         "vscode.executeDefinitionProvider",
@@ -81,12 +89,7 @@ export async function closeSelection(document: vscode.TextDocument, selection: v
 }
 
 function enclosingSymbol(symbols: vscode.DocumentSymbol[], selection: vscode.Selection | vscode.Range): vscode.DocumentSymbol | undefined {
-  for (const symbol of symbols) {
-    const nested = enclosingSymbol(symbol.children, selection);
-    if (nested) return nested;
-    if (symbol.range.contains(selection)) return symbol;
-  }
-  return undefined;
+  return symbols.find((symbol) => symbol.range.contains(selection));
 }
 
 function toRange(value: vscode.DocumentSymbol | vscode.Range | vscode.Selection): vscode.Range {

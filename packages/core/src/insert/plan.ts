@@ -29,6 +29,9 @@ export function planInsert(input: {
   targetOrg?: string;
   confirmedCrossOrg?: boolean;
   symbol?: string;
+  fromFile?: string;
+  projectDir?: string;
+  insertDir?: string;
 }): InsertPlan {
   logStage("insert", "in", { slug: input.entry.slug, mode: input.mode });
   const blocked = crossOrgBlocked(input.entry.ownership, input.entry.origin.org, input.targetOrg) && !input.confirmedCrossOrg;
@@ -41,14 +44,16 @@ export function planInsert(input: {
   const languageMatches = input.entry.language === input.targetLanguage;
   const verbatim = languageMatches && !majorMismatch && missingDeps.length === 0;
   const symbol = input.symbol || input.entry.symbols[0] || input.entry.title;
-  const importLine = input.mode === "add" ? `import { ${symbol} } from './${input.entry.slug}/${stripExt(input.entry.entryFile)}';` : undefined;
+  const importLine = input.mode === "add" ? importFrom(input, symbol) : undefined;
+  const start = markerLine(input.entry.language, input.entry.slug, input.entry.version, input.entry.contentHash);
+  const end = endMarkerLine(input.entry.language);
   const plan: InsertPlan = {
     slug: input.entry.slug,
     version: input.entry.version,
     mode: input.mode,
     files: input.files.map((file) => ({
       relPath: file.relPath,
-      content: `${markerLine(input.entry.language, input.entry.slug, input.entry.version, input.entry.contentHash)}\n${file.content}`,
+      content: input.mode === "cursor" ? `${start}\n${file.content}\n${end}` : `${start}\n${file.content}`,
     })),
     importLine,
     missingDeps,
@@ -65,9 +70,9 @@ export function planInsert(input: {
 export function applyInsert(projectDir: string, insertDir: string, plan: InsertPlan): string[] {
   if (plan.blocked) throw new Error("Cross-org insert is waiting for confirmation.");
   const written: string[] = [];
-  const root = path.join(projectDir, insertDir, plan.slug);
   for (const file of plan.files) {
-    const target = resolveInside(root, file.relPath);
+    const rel = [insertDir, plan.slug, file.relPath].join("/");
+    const target = resolveInside(projectDir, rel);
     atomicWrite(target, file.content);
     written.push(target);
   }
@@ -76,10 +81,26 @@ export function applyInsert(projectDir: string, insertDir: string, plan: InsertP
 }
 
 export function markerLine(language: Language, slug: string, version: number, hash: string): string {
-  const text = `@codebank ${slug} v${version} ${hash}`;
+  return commentFor(language, `@codebank ${slug} v${version} ${hash}`);
+}
+
+function endMarkerLine(language: Language): string {
+  return commentFor(language, "@codebank-end");
+}
+
+function commentFor(language: Language, text: string): string {
   if (language === "css" || language === "scss") return `/* ${text} */`;
   if (language === "other") return `# ${text}`;
   return `// ${text}`;
+}
+
+function importFrom(input: { entry: Entry; fromFile?: string; projectDir?: string; insertDir?: string }, symbol: string): string | undefined {
+  if (!input.fromFile || !input.projectDir || !input.insertDir) return undefined;
+  const dest = path.join(input.projectDir, input.insertDir, input.entry.slug, stripExt(input.entry.entryFile));
+  let rel = path.relative(path.dirname(input.fromFile), dest);
+  rel = rel.split(path.sep).join("/");
+  if (!rel.startsWith(".")) rel = `./${rel}`;
+  return `import { ${symbol} } from '${rel}';`;
 }
 
 function adaptHint(languageMatches: boolean, majorMismatch: boolean, missing: { name: string }[]): string {
