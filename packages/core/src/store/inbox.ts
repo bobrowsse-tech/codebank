@@ -8,6 +8,7 @@ import type { Candidate, SourceFile } from "../model/types";
 import { isPackageDep, problemsForCandidate, problemsForFiles, toSlug } from "../model/validate";
 import { scanSecrets } from "../security/secrets";
 import { atomicWriteJson, readJson } from "./atomic";
+import { withLock } from "./lock";
 import { saveEntry, type SaveOutcome } from "./entries";
 import { assertSafeRelPath, bankPaths } from "./paths";
 
@@ -58,15 +59,17 @@ export function listDismissed(home: string): string[] {
   return raw.ids ?? [];
 }
 
-export function dismissCandidate(home: string, id: string): boolean {
-  const candidate = readCandidate(home, id);
-  if (!candidate) return false;
-  const ids = new Set(listDismissed(home));
-  ids.add(id);
-  atomicWriteJson(bankPaths(home).dismissed, { schema: 1, ids: [...ids] });
-  removeCandidate(home, id);
-  logStage("inbox", "out", { dismissed: id });
-  return true;
+export async function dismissCandidate(home: string, id: string): Promise<boolean> {
+  return withLock(bankPaths(home).lock, () => {
+    const candidate = readCandidate(home, id);
+    if (!candidate) return false;
+    const ids = new Set(listDismissed(home));
+    ids.add(id);
+    atomicWriteJson(bankPaths(home).dismissed, { schema: 1, ids: [...ids] });
+    removeCandidate(home, id);
+    logStage("inbox", "out", { dismissed: id });
+    return true;
+  });
 }
 
 export async function acceptCandidate(home: string, id: string): Promise<SaveOutcome | { ok: false; reason: "missing" }> {

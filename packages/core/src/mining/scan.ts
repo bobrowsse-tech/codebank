@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { contentHash } from "../closure/hash";
-import { heuristicClosure, languageFromFile } from "../closure/extract";
+import { heuristicClosure, languageFromFile, withRequiredImports } from "../closure/extract";
 import { describeRepo } from "../git/repo";
 import { logStage } from "../log";
 import type { Candidate } from "../model/types";
@@ -325,7 +325,16 @@ function emitCandidates(home: string, groups: FoundUnit[][]): Candidate[] {
       endLine: representative.endLine,
     });
     if (!representative.exported) continue;
-    const files = closure.files.length > 0 ? closure.files : [{ relPath: representative.relPath, content: representative.content }];
+    const primary = closure.files[0]?.content ?? representative.content;
+    let restored = primary;
+    try {
+      restored = withRequiredImports(fs.readFileSync(representative.absPath, "utf8"), primary);
+    } catch {
+      restored = primary;
+    }
+    const files = closure.files.length > 0
+      ? [{ ...closure.files[0], content: restored }, ...closure.files.slice(1)]
+      : [{ relPath: representative.relPath, content: restored }];
     if (scanSecrets(files.map((file) => file.content).join("\n")).some((finding) => finding.severity === "block")) continue;
     const ownership = resolveOwnership(representative.org, config);
     const candidate: Candidate = {

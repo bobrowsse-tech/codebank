@@ -71,9 +71,9 @@ export function activate(context: vscode.ExtensionContext): void {
       refreshInbox();
       bank.refresh();
     }),
-    vscode.commands.registerCommand("codebank.dismiss", (item?: { slug?: string }) => {
+    vscode.commands.registerCommand("codebank.dismiss", async (item?: { slug?: string }) => {
       if (!item?.slug) return;
-      dismissCandidate(bankHome(), item.slug);
+      await dismissCandidate(bankHome(), item.slug);
       refreshInbox();
     }),
     ...registerTools(bankHome, refreshInbox),

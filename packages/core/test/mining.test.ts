@@ -91,7 +91,7 @@ test("an agent proposal stays in the inbox until it is accepted", async () => {
   assert.equal(listEntries(home)[0]?.slug, "format-currency");
   const victim = path.join(home, "victim.json");
   fs.writeFileSync(victim, "{}");
-  assert.equal(dismissCandidate(home, "../../victim"), false);
+  assert.equal(await dismissCandidate(home, "../../victim"), false);
   assert.equal(fs.existsSync(victim), true);
 });
 
@@ -102,7 +102,7 @@ test("dismiss keeps a cluster out of the next scan", async () => {
   await mine(home, { roots });
   const id = listCandidates(home)[0]?.id;
   assert.ok(id);
-  assert.equal(dismissCandidate(home, id), true);
+  assert.equal(await dismissCandidate(home, id), true);
   await mine(home, { roots });
   assert.equal(listCandidates(home).length, 0);
 });
@@ -201,6 +201,18 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   });
   assert.equal(cancelled.cancelled, true);
   assert.equal(listCandidates(cancelledHome).length, 0);
+});
+
+test("a mined unit keeps the imports it uses", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-import-home-"));
+  ensureHome(home);
+  const source = `import { rows } from "./rows";\n${padded("filterItems", 8).replace("return rows;", "return rows();")}`;
+  const files = { "src/rows.ts": "export function rows() { return []; }\n", "src/filter.ts": source };
+  await mine(home, { roots: [repoWith(files), repoWith(files)] });
+  const candidate = listCandidates(home).find((item) => item.draft.symbols[0] === "filterItems");
+  assert.ok(candidate);
+  assert.match(candidate.files[0]?.content ?? "", /import \{ rows \} from "\.\/rows"/);
+  assert.match(candidate.files[0]?.content ?? "", /return rows\(\)/);
 });
 
 test("a tracked symlink is not read", async () => {

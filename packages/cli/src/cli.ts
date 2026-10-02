@@ -261,7 +261,7 @@ async function inboxCommand(argv: string[]): Promise<number> {
     return 1;
   }
   if (action === "dismiss") {
-    if (!dismissCandidate(home, id)) {
+    if (!(await dismissCandidate(home, id))) {
       console.error(`No candidate named ${id}.`);
       return 2;
     }
