@@ -49,13 +49,14 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerTreeDataProvider("codebank.updates", updates),
     vscode.commands.registerCommand("codebank.deposit", () => depositSelection(bankHome, () => bank.refresh())),
     vscode.commands.registerCommand("codebank.search", () => searchCommand(bankHome)),
-    vscode.commands.registerCommand("codebank.insert", (slug?: string, repoId?: string) =>
-      slug ? insertSlug(bankHome(), slug, repoId) : insertCommand(bankHome),
-    ),
+    vscode.commands.registerCommand("codebank.insert", (item?: unknown, repoId?: string) => {
+      const slug = treeId(item);
+      return slug ? insertSlug(bankHome(), slug, repoId) : insertCommand(bankHome);
+    }),
     vscode.commands.registerCommand("codebank.openInbox", () => {
       void vscode.commands.executeCommand("codebank.inbox.focus");
     }),
-    vscode.commands.registerCommand("codebank.retire", (item?: { slug?: string }) => retire(bankHome(), item?.slug, bank)),
+    vscode.commands.registerCommand("codebank.retire", (item?: unknown) => retire(bankHome(), treeId(item), bank)),
     vscode.commands.registerCommand("codebank.rebuildIndex", () => {
       loadIndex(bankHome());
       bank.refresh();
@@ -64,19 +65,22 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(bankHome()));
     }),
     vscode.commands.registerCommand("codebank.mine", () => scanFolders(bankHome, refreshInbox)),
-    vscode.commands.registerCommand("codebank.previewCandidate", (id?: string) => {
+    vscode.commands.registerCommand("codebank.previewCandidate", (item?: unknown) => {
+      const id = treeId(item);
       if (id) return previewCandidate(bankHome(), id);
     }),
-    vscode.commands.registerCommand("codebank.accept", async (item?: { slug?: string }) => {
-      if (!item?.slug) return;
-      const outcome = await acceptCandidate(bankHome(), item.slug);
+    vscode.commands.registerCommand("codebank.accept", async (item?: unknown) => {
+      const id = treeId(item);
+      if (!id) return;
+      const outcome = await acceptCandidate(bankHome(), id);
       if (!outcome.ok) void vscode.window.showWarningMessage(outcome.reason === "missing" ? "That candidate is gone." : `Not accepted: ${outcome.reason}.`);
       refreshInbox();
       bank.refresh();
     }),
-    vscode.commands.registerCommand("codebank.dismiss", async (item?: { slug?: string }) => {
-      if (!item?.slug) return;
-      await dismissCandidate(bankHome(), item.slug);
+    vscode.commands.registerCommand("codebank.dismiss", async (item?: unknown) => {
+      const id = treeId(item);
+      if (!id) return;
+      await dismissCandidate(bankHome(), id);
       refreshInbox();
     }),
     ...registerTools(bankHome, refreshInbox),
@@ -103,6 +107,15 @@ export function activate(context: vscode.ExtensionContext): void {
   inboxWatcher.onDidCreate(refreshInbox);
   inboxWatcher.onDidDelete(refreshInbox);
   context.subscriptions.push(watcher, inboxWatcher);
+}
+
+function treeId(item: unknown): string | undefined {
+  if (typeof item === "string" && item) return item;
+  if (!item || typeof item !== "object") return undefined;
+  const node = item as { slug?: unknown; command?: { arguments?: unknown[] } };
+  const argument = node.command?.arguments?.[0];
+  if (typeof argument === "string" && argument) return argument;
+  return typeof node.slug === "string" && node.slug ? node.slug : undefined;
 }
 
 async function retire(home: string, slug: string | undefined, bank: BankView): Promise<void> {
