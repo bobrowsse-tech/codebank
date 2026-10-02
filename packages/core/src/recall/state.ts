@@ -3,6 +3,7 @@ import { logStage } from "../log";
 import type { BankConfig } from "../model/types";
 import { atomicWriteJson, readJson } from "../store/atomic";
 import { loadConfig, saveConfig } from "../store/config";
+import { withLock } from "../store/lock";
 import { bankPaths } from "../store/paths";
 import { appendUsage } from "../store/usage";
 
@@ -43,7 +44,11 @@ export function saveRecall(home: string, state: RecallState): void {
   atomicWriteJson(statePath(home), state);
 }
 
-export function noteShown(home: string, repoId: string, filePath: string, slug?: string): boolean {
+export async function noteShown(home: string, repoId: string, filePath: string, slug?: string): Promise<boolean> {
+  return withLock(bankPaths(home).lock, () => noteShownHeld(home, repoId, filePath, slug));
+}
+
+function noteShownHeld(home: string, repoId: string, filePath: string, slug?: string): boolean {
   const state = loadRecall(home);
   const key = `${repoId}:${filePath}`;
   const now = Date.now();
@@ -57,7 +62,8 @@ export function noteShown(home: string, repoId: string, filePath: string, slug?:
   return true;
 }
 
-export function noteDismissed(home: string, repoId: string, slug: string, filePath = ""): void {
+export async function noteDismissed(home: string, repoId: string, slug: string, filePath = ""): Promise<void> {
+  await withLock(bankPaths(home).lock, () => {
   const state = loadRecall(home);
   const key = `${repoId}:${slug}`;
   if (filePath) state.dismissedAt[`${repoId}:${filePath}`] = Date.now();
@@ -66,21 +72,26 @@ export function noteDismissed(home: string, repoId: string, slug: string, filePa
   saveRecall(home, state);
   appendUsage(home, { t: new Date().toISOString(), kind: "dismissed", surface: "codelens", slug });
   logStage("recall", "out", { dismissed: key, count: state.dismissals[key] });
+  });
 }
 
-export function noteAccepted(home: string, repoId: string, slug: string): void {
-  const state = loadRecall(home);
-  state.acceptedCount += 1;
-  saveRecall(home, state);
-  logStage("recall", "out", { accepted: `${repoId}:${slug}` });
+export async function noteAccepted(home: string, repoId: string, slug: string): Promise<void> {
+  await withLock(bankPaths(home).lock, () => {
+    const state = loadRecall(home);
+    state.acceptedCount += 1;
+    saveRecall(home, state);
+    logStage("recall", "out", { accepted: `${repoId}:${slug}` });
+  });
 }
 
-export function muteRecall(home: string, repoId: string, slug: string): void {
-  const state = loadRecall(home);
-  const key = `${repoId}:${slug}`;
-  if (!state.muted.includes(key)) state.muted.push(key);
-  saveRecall(home, state);
-  logStage("recall", "out", { muted: key });
+export async function muteRecall(home: string, repoId: string, slug: string): Promise<void> {
+  await withLock(bankPaths(home).lock, () => {
+    const state = loadRecall(home);
+    const key = `${repoId}:${slug}`;
+    if (!state.muted.includes(key)) state.muted.push(key);
+    saveRecall(home, state);
+    logStage("recall", "out", { muted: key });
+  });
 }
 
 export function isMuted(home: string, repoId: string, slug: string): boolean {

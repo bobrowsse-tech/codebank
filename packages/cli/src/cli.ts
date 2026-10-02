@@ -281,7 +281,7 @@ async function inboxCommand(argv: string[]): Promise<number> {
   return 1;
 }
 
-function proposeCommand(argv: string[]): number {
+async function proposeCommand(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
@@ -303,7 +303,7 @@ function proposeCommand(argv: string[]): number {
     return { relPath: path.relative(process.cwd(), abs).split(path.sep).join("/"), content: fs.readFileSync(abs, "utf8") };
   });
   const home = ensureAndHome();
-  const outcome = proposeCandidate(home, {
+  const outcome = await proposeCandidate(home, {
     title: values.title,
     intent: values.intent,
     whenNot: values["when-not"],

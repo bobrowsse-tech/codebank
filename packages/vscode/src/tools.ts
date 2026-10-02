@@ -74,7 +74,7 @@ export function registerTools(homeOf: () => string, onProposed?: () => void): vs
     vscode.lm.registerTool("codebank_propose", {
       invoke: async (options) => {
         const input = options.input as ProposeInput;
-        const outcome = proposeCandidate(homeOf(), {
+        const outcome = await proposeCandidate(homeOf(), {
           title: input.title,
           intent: input.intent,
           whenNot: input.whenNot,

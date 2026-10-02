@@ -38,13 +38,17 @@ export function readCandidate(home: string, id: string): Candidate | undefined {
   return readJson<Candidate>(file);
 }
 
-export function writeCandidate(home: string, candidate: Candidate): void {
+export function writeCandidateHeld(home: string, candidate: Candidate): void {
   const problems = problemsForCandidate(candidate);
   if (problems.length > 0) throw new Error(problems.join(" "));
   const file = candidatePath(home, candidate.id);
   if (!file) throw new Error("A candidate id must be 16 lowercase hex characters.");
   atomicWriteJson(file, candidate);
   logStage("inbox", "out", { id: candidate.id, proposedBy: candidate.proposedBy });
+}
+
+export async function writeCandidate(home: string, candidate: Candidate): Promise<void> {
+  await withLock(bankPaths(home).lock, () => writeCandidateHeld(home, candidate));
 }
 
 export function removeCandidate(home: string, id: string): void {
@@ -117,7 +121,7 @@ export interface Proposal {
   deps?: { name: string; range: string }[];
 }
 
-export function proposeCandidate(home: string, proposal: Proposal): { ok: true; candidate: Candidate } | { ok: false; reason: string } {
+export async function proposeCandidate(home: string, proposal: Proposal): Promise<{ ok: true; candidate: Candidate } | { ok: false; reason: string }> {
   if (proposal.files.length === 0 || proposal.files.length > 20) return { ok: false, reason: "A proposal has 1 to 20 files." };
   const bytes = proposal.files.reduce((sum, file) => sum + Buffer.byteLength(file.content), 0);
   if (bytes > 200_000) return { ok: false, reason: "A proposal is larger than 200 KB." };
@@ -167,6 +171,6 @@ export function proposeCandidate(home: string, proposal: Proposal): { ok: true; 
     proposedBy: "agent",
     createdAt: new Date().toISOString(),
   };
-  writeCandidate(home, candidate);
+  await writeCandidate(home, candidate);
   return { ok: true, candidate };
 }

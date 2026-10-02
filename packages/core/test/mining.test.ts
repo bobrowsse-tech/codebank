@@ -45,7 +45,7 @@ test("an agent proposal stays in the inbox until it is accepted", async () => {
   ensureHome(home);
   const project = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-project-"));
   const before = fs.readdirSync(project);
-  const proposed = proposeCandidate(home, {
+  const proposed = await proposeCandidate(home, {
     title: "Format currency",
     intent: "Formats a cent amount.",
     tags: ["currency"],
@@ -57,21 +57,21 @@ test("an agent proposal stays in the inbox until it is accepted", async () => {
   if (!proposed.ok) return;
   assert.equal(proposed.candidate.proposedBy, "agent");
   assert.equal(proposed.candidate.draft.symbols[0], "formatCurrency");
-  const unnamed = proposeCandidate(home, {
+  const unnamed = await proposeCandidate(home, {
     title: "No export",
     intent: "Missing a name.",
     tags: [],
     files: [{ relPath: "src/plain.ts", content: "const value = 1;\n" }],
   });
   assert.equal(unnamed.ok, false);
-  const fallback = proposeCandidate(home, {
+  const fallback = await proposeCandidate(home, {
     title: "Default only",
     intent: "A default export.",
     tags: [],
     files: [{ relPath: "src/fallback.ts", content: "export default function Foo() { return 1; }\n" }],
   });
   assert.equal(fallback.ok, false);
-  const injected = proposeCandidate(home, {
+  const injected = await proposeCandidate(home, {
     title: "Bad range",
     intent: "Unsafe dependency.",
     tags: [],
@@ -79,7 +79,7 @@ test("an agent proposal stays in the inbox until it is accepted", async () => {
     deps: [{ name: "lodash", range: "^1; touch /tmp/owned" }],
   });
   assert.equal(injected.ok, false);
-  const blocked = proposeCandidate(home, {
+  const blocked = await proposeCandidate(home, {
     title: "Leaked",
     intent: "nope",
     tags: [],
@@ -136,9 +136,9 @@ test("an empty useFilters file suggests the filtering entry and unrelated names 
   const suggestion = suggestRecall(home, { filePath: "src/useFilters.ts", text: "", repoId: "repo", targetOrg: "fixture" });
   assert.equal(suggestion?.slug, "filtering");
   assert.equal(suggestRecall(home, { filePath: "src/useFilters.ts", text: "", repoId: "repo", enabled: false }), undefined);
-  assert.equal(noteShown(home, "repo", "src/useFilters.ts", "filtering"), true);
-  assert.equal(noteShown(home, "repo", "src/useFilters.ts", "filtering"), false);
-  noteDismissed(home, "repo", "filtering", "src/useFilters.ts");
+  assert.equal(await noteShown(home, "repo", "src/useFilters.ts", "filtering"), true);
+  assert.equal(await noteShown(home, "repo", "src/useFilters.ts", "filtering"), false);
+  await noteDismissed(home, "repo", "filtering", "src/useFilters.ts");
   assert.deepEqual(
     readUsage(home).map((event) => event.kind),
     ["shown", "dismissed"],

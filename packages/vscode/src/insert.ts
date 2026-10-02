@@ -93,7 +93,7 @@ export async function insertSlug(home: string, slug: string, repoId?: string): P
     }
   }
   await recordUse(home, slug, plan.verbatim);
-  if (repoId) noteAccepted(home, repoId, slug);
+  if (repoId) await noteAccepted(home, repoId, slug);
   appendUsage(home, { t: new Date().toISOString(), kind: "inserted", surface: repoId ? "codelens" : "quickpick", slug, verbatim: plan.verbatim });
   if (plan.installCommand) {
     const install = await vscode.window.showInformationMessage(`Missing ${plan.missingDeps.map((dep) => dep.name).join(", ")}.`, "Show install command");

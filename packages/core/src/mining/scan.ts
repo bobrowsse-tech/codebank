@@ -85,7 +85,7 @@ export async function mine(
   if (!clusters || options.signal?.aborted) return finish(home, [], files, repos.length, 0, started, true);
   const admitted = clusters.filter(admit);
   const candidates = emitCandidates(home, admitted).slice(0, 50);
-  for (const candidate of candidates) writeCandidate(home, candidate);
+  for (const candidate of candidates) await writeCandidate(home, candidate);
   options.onProgress?.({
     repo: "",
     reposDone: repos.length,

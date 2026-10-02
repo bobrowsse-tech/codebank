@@ -30,7 +30,7 @@ export function registerRecall(context: vscode.ExtensionContext, homeOf: () => s
           pasted: recentPastes.get(document.uri.toString()),
         });
         if (!suggestion) return [];
-        noteShown(homeOf(), repo?.repoId ?? "workspace", document.uri.fsPath, suggestion.slug);
+        void noteShown(homeOf(), repo?.repoId ?? "workspace", document.uri.fsPath, suggestion.slug);
         const range = new vscode.Range(0, 0, 0, 0);
         const repoId = repo?.repoId ?? "workspace";
         const filePath = document.uri.fsPath;
@@ -47,11 +47,11 @@ export function registerRecall(context: vscode.ExtensionContext, homeOf: () => s
       },
     }),
     vscode.commands.registerCommand("codebank.preview", (slug: string) => previewEntry(homeOf(), slug)),
-    vscode.commands.registerCommand("codebank.recallDismiss", (repoId: string, slug: string, filePath: string) => {
-      noteDismissed(homeOf(), repoId, slug, filePath);
+    vscode.commands.registerCommand("codebank.recallDismiss", async (repoId: string, slug: string, filePath: string) => {
+      await noteDismissed(homeOf(), repoId, slug, filePath);
     }),
-    vscode.commands.registerCommand("codebank.mute", (repoId: string, slug: string) => {
-      muteRecall(homeOf(), repoId, slug);
+    vscode.commands.registerCommand("codebank.mute", async (repoId: string, slug: string) => {
+      await muteRecall(homeOf(), repoId, slug);
     }),
   );
 }
