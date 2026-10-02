@@ -66,7 +66,7 @@ function commentSignal(home: string, input: { text: string; targetOrg?: string }
 function pasteSignal(home: string, input: { text: string; targetOrg?: string }): RecallSuggestion | undefined {
   if (input.text.split("\n").length < 12) return undefined;
   const grams = shingles(input.text);
-  const hits = searchScored(home, tokenize(input.text).slice(0, 12).join(" "), 8, { targetOrg: input.targetOrg });
+  const hits = searchScored(home, tokenize(input.text).slice(0, 12).join(" "), 8, { targetOrg: input.targetOrg, status: "active" });
   let best: RecallSuggestion | undefined;
   for (const hit of hits) {
     const code = readEntryFiles(home, hit.card.slug).map((file) => file.content).join("\n");
@@ -85,7 +85,7 @@ function fromSearch(
   signal: RecallSuggestion["signal"],
   weight: number,
 ): RecallSuggestion | undefined {
-  const hit = searchScored(home, query, 1, { targetOrg })[0];
+  const hit = searchScored(home, query, 1, { targetOrg, status: "active" })[0];
   if (!hit) return undefined;
   return toSuggestion(hit.card, blend(hit.score, weight, hit.card), signal);
 }

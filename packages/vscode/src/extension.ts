@@ -3,7 +3,7 @@ import { acceptCandidate, dismissCandidate, ensureHome, listCandidates, loadInde
 import { BankView, InboxView, UpdatesView } from "./bank.ts";
 import { depositSelection } from "./deposit.ts";
 import { insertCommand, insertSlug } from "./insert.ts";
-import { searchCommand } from "./search.ts";
+import { previewCandidate, searchCommand } from "./search.ts";
 import { registerRecall } from "./recall.ts";
 import { scanFolders } from "./scan.ts";
 import { registerTools } from "./tools.ts";
@@ -64,6 +64,9 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(bankHome()));
     }),
     vscode.commands.registerCommand("codebank.mine", () => scanFolders(bankHome, refreshInbox)),
+    vscode.commands.registerCommand("codebank.previewCandidate", (id?: string) => {
+      if (id) return previewCandidate(bankHome(), id);
+    }),
     vscode.commands.registerCommand("codebank.accept", async (item?: { slug?: string }) => {
       if (!item?.slug) return;
       const outcome = await acceptCandidate(bankHome(), item.slug);
@@ -90,11 +93,16 @@ export function activate(context: vscode.ExtensionContext): void {
   status.show();
   context.subscriptions.push(status);
 
-  const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.Uri.file(bankHome()), "entries/**"));
+  const homeUri = vscode.Uri.file(bankHome());
+  const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(homeUri, "entries/**"));
   watcher.onDidChange(() => bank.refresh());
   watcher.onDidCreate(() => bank.refresh());
   watcher.onDidDelete(() => bank.refresh());
-  context.subscriptions.push(watcher);
+  const inboxWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(homeUri, "inbox/**"));
+  inboxWatcher.onDidChange(refreshInbox);
+  inboxWatcher.onDidCreate(refreshInbox);
+  inboxWatcher.onDidDelete(refreshInbox);
+  context.subscriptions.push(watcher, inboxWatcher);
 }
 
 async function retire(home: string, slug: string | undefined, bank: BankView): Promise<void> {

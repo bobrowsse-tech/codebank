@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
 import * as vscode from "vscode";
@@ -6,7 +7,7 @@ import type { MineProgress, MineResult } from "../../core/src/mining/scan.ts";
 export function scanFolders(homeOf: () => string, onDone: () => void): void {
   const configured = vscode.workspace.getConfiguration("codebank").get<string[]>("scan.roots") ?? [];
   const folders = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? [];
-  const roots = (configured.length > 0 ? configured : folders).map((root) => root.replace(/^~(?=$|\/)/, process.env.HOME ?? ""));
+  const roots = (configured.length > 0 ? configured : folders).map((root) => root.replace(/^~(?=$|[/\\])/, os.homedir()));
   const panel = vscode.window.createWebviewPanel("codebank.scan", "Codebank: Scan", vscode.ViewColumn.Active, {
     enableScripts: true,
     retainContextWhenHidden: true,

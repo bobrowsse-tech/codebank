@@ -170,33 +170,32 @@ function get(home: string, args: Record<string, unknown>): unknown {
 }
 
 async function propose(home: string, args: Record<string, unknown>): Promise<unknown> {
-  const files = Array.isArray(args.files) ? args.files.flatMap((file) => {
-    if (!file || typeof file !== "object") return [];
-    const item = file as { relPath?: unknown; content?: unknown };
-    if (typeof item.relPath !== "string" || typeof item.content !== "string") return [];
-    return [{ relPath: item.relPath, content: item.content }];
-  }) : [];
-  const tags = Array.isArray(args.tags) ? args.tags.filter((tag): tag is string => typeof tag === "string") : [];
-  const outcome = await proposeCandidate(home, {
-    title: String(args.title ?? ""),
-    intent: String(args.intent ?? ""),
-    whenNot: typeof args.whenNot === "string" ? args.whenNot : undefined,
-    tags,
-    files,
-    deps: proposalDeps(args.deps),
-  });
+  const outcome = await proposeCandidate(home, proposalArgs(args));
   if (!outcome.ok) return { content: [{ type: "text", text: outcome.reason }], isError: true };
   return { content: [{ type: "text", text: `Proposed ${outcome.candidate.id} to the inbox. A person has to accept it.` }] };
 }
 
-function proposalDeps(value: unknown): { name: string; range: string }[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const dep = item as { name?: unknown; range?: unknown };
-    if (typeof dep.name !== "string" || typeof dep.range !== "string") return [];
-    return [{ name: dep.name, range: dep.range }];
+function proposalArgs(args: Record<string, unknown>): { title: string; intent: string; whenNot?: string; tags: string[]; files: { relPath: string; content: string }[]; deps?: { name: string; range: string }[] } {
+  if (typeof args.title !== "string" || typeof args.intent !== "string") throw new ToolError("title and intent must be strings.");
+  if (args.whenNot !== undefined && typeof args.whenNot !== "string") throw new ToolError("whenNot must be a string.");
+  if (!Array.isArray(args.tags) || args.tags.some((tag) => typeof tag !== "string")) throw new ToolError("tags must be an array of strings.");
+  if (!Array.isArray(args.files)) throw new ToolError("files must be an array.");
+  const files = args.files.map((file) => {
+    if (!file || typeof file !== "object") throw new ToolError("each file needs relPath and content strings.");
+    const item = file as { relPath?: unknown; content?: unknown };
+    if (typeof item.relPath !== "string" || typeof item.content !== "string") throw new ToolError("each file needs relPath and content strings.");
+    return { relPath: item.relPath, content: item.content };
   });
+  if (args.deps !== undefined && !Array.isArray(args.deps)) throw new ToolError("deps must be an array.");
+  const deps = Array.isArray(args.deps)
+    ? args.deps.map((item) => {
+        if (!item || typeof item !== "object") throw new ToolError("each dependency needs name and range strings.");
+        const dep = item as { name?: unknown; range?: unknown };
+        if (typeof dep.name !== "string" || typeof dep.range !== "string") throw new ToolError("each dependency needs name and range strings.");
+        return { name: dep.name, range: dep.range };
+      })
+    : undefined;
+  return { title: args.title, intent: args.intent, whenNot: typeof args.whenNot === "string" ? args.whenNot : undefined, tags: args.tags, files, deps };
 }
 
 function cardLine(card: { slug: string; title: string; intent: string; deps: string[]; version: number }): string {

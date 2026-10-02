@@ -49,7 +49,9 @@ export class InboxView implements vscode.TreeDataProvider<BankNode> {
     return candidates.map((candidate) => {
       const label = candidate.proposedBy === "agent" ? `${candidate.draft.title} · agent-proposed` : candidate.draft.title;
       const node = new BankNode(label, "candidate", candidate.id);
-      node.description = candidate.reasons[0] ?? candidate.proposedBy;
+      const sources = candidate.sources.map((source) => source.repoName).filter((name, index, all) => all.indexOf(name) === index);
+      node.description = `${candidate.score.toFixed(2)} · ${candidate.reasons[0] ?? candidate.proposedBy}${sources.length > 0 ? ` · ${sources.join(", ")}` : ""}`;
+      node.command = { command: "codebank.previewCandidate", title: "Preview", arguments: [candidate.id] };
       return node;
     });
   }

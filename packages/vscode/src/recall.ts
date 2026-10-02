@@ -4,11 +4,21 @@ import { muteRecall, noteDismissed, noteShown } from "../../core/src/recall/stat
 import { previewEntry } from "./search.ts";
 
 const recentPastes = new Map<string, string>();
+const repos = new Map<string, ReturnType<typeof describeRepo>>();
+
+function cachedRepo(folder: string): ReturnType<typeof describeRepo> {
+  const known = repos.get(folder);
+  if (known) return known;
+  const info = describeRepo(folder);
+  repos.set(folder, info);
+  return info;
+}
 
 export function registerRecall(context: vscode.ExtensionContext, homeOf: () => string): void {
   const lenses = new vscode.EventEmitter<void>();
   context.subscriptions.push(
     lenses,
+    vscode.workspace.onDidChangeWorkspaceFolders(() => repos.clear()),
     vscode.workspace.onDidChangeTextDocument((event) => {
       const key = event.document.uri.toString();
       const pasted = pastedText(event.contentChanges.map((change) => change.text));
@@ -19,7 +29,7 @@ export function registerRecall(context: vscode.ExtensionContext, homeOf: () => s
       onDidChangeCodeLenses: lenses.event,
       provideCodeLenses(document) {
         const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-        const repo = folder ? describeRepo(folder.uri.fsPath) : undefined;
+        const repo = folder ? cachedRepo(folder.uri.fsPath) : undefined;
         const recall = vscode.workspace.getConfiguration("codebank");
         const enabled = recall.inspect<boolean>("recall.enabled");
         const threshold = recall.inspect<number>("recall.threshold");

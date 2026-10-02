@@ -23,6 +23,7 @@
       { "command": "codebank.openHome", "title": "Codebank: Reveal Bank Folder" },
       { "command": "codebank.mine", "title": "Codebank: Scan This Machine" },
       { "command": "codebank.openInbox", "title": "Codebank: Open Inbox" },
+      { "command": "codebank.previewCandidate", "title": "Preview Candidate" },
       { "command": "codebank.accept", "title": "Accept Candidate" },
       { "command": "codebank.dismiss", "title": "Dismiss Candidate" },
       { "command": "codebank.preview", "title": "Preview" },
@@ -51,6 +52,7 @@
       "view/item/context": [
         { "command": "codebank.insert", "when": "view == codebank.bank && viewItem == entry", "group": "inline" },
         { "command": "codebank.retire", "when": "view == codebank.bank && viewItem == entry" },
+        { "command": "codebank.previewCandidate", "when": "view == codebank.inbox && viewItem == candidate", "group": "inline" },
         { "command": "codebank.accept", "when": "view == codebank.inbox && viewItem == candidate", "group": "inline" },
         { "command": "codebank.dismiss", "when": "view == codebank.inbox && viewItem == candidate" }
       ]

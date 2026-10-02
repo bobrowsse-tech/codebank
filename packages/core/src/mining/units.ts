@@ -18,9 +18,9 @@ export function extractUnits(source: string): UnitSpan[] {
     if (/\bconst\b/.test(header) && !exported) continue;
     const name = header.match(/(?:function|const|class)\s+([A-Za-z_$][\w$]*)/)?.[1];
     if (!name) continue;
-    const braceAt = findBrace(source, at + header.length);
-    if (braceAt < 0) continue;
-    const end = matchingBrace(source, braceAt);
+    const located = statementEnd(source, at + header.length);
+    if (!located || ("expr" in located && !header.includes("=>"))) continue;
+    const end = "body" in located ? matchingBrace(source, located.body) : located.expr;
     if (end < 0) continue;
     const start = source[at] === "\n" ? at + 1 : at;
     const startLine = lineNumber(source, start);
@@ -70,12 +70,71 @@ function lineNumber(source: string, index: number): number {
   return line;
 }
 
-function findBrace(source: string, from: number): number {
-  for (let index = from; index < source.length; index += 1) {
-    if (source[index] === "{") return index;
-    if (source[index] === ";") return -1;
+function statementEnd(source: string, from: number): { body: number } | { expr: number } | undefined {
+  let paren = 0;
+  let bracket = 0;
+  let angle = 0;
+  let brace = 0;
+  for (let index = from; index < source.length; ) {
+    const skipped = skipNonCode(source, index);
+    if (skipped !== index) {
+      index = skipped;
+      continue;
+    }
+    const char = source[index];
+    if (char === "(") paren += 1;
+    else if (char === ")" && paren > 0) paren -= 1;
+    else if (char === "[") bracket += 1;
+    else if (char === "]" && bracket > 0) bracket -= 1;
+    else if (char === "<" && paren === 0 && bracket === 0 && brace === 0) angle += 1;
+    else if (char === ">" && angle > 0 && paren === 0 && bracket === 0 && brace === 0 && source[index - 1] !== "=") angle -= 1;
+    else if (char === "{") {
+      if (paren === 0 && bracket === 0 && angle === 0 && brace === 0 && isBodyBrace(source, index)) return { body: index };
+      brace += 1;
+    } else if (char === "}" && brace > 0) brace -= 1;
+    else if (char === ";" && paren === 0 && bracket === 0 && angle === 0 && brace === 0) return { expr: index };
+    index += 1;
   }
-  return -1;
+  return undefined;
+}
+
+function isBodyBrace(source: string, index: number): boolean {
+  let cursor = index - 1;
+  while (cursor >= 0 && /\s/.test(source[cursor])) cursor -= 1;
+  if (cursor < 0) return false;
+  const previous = source[cursor];
+  if (previous === ")" || previous === ">" || previous === "}" || previous === "]") return true;
+  return /[A-Za-z0-9_$]/.test(previous);
+}
+
+function skipNonCode(source: string, index: number): number {
+  const char = source[index];
+  const next = source[index + 1];
+  if (char === "/" && next === "/") {
+    let cursor = index + 2;
+    while (cursor < source.length && source[cursor] !== "\n") cursor += 1;
+    return cursor;
+  }
+  if (char === "/" && next === "*") {
+    let cursor = index + 2;
+    while (cursor < source.length && !(source[cursor] === "*" && source[cursor + 1] === "/")) cursor += 1;
+    return Math.min(source.length, cursor + 2);
+  }
+  if (char === "/" && next !== "/" && next !== "*" && regexStart(source, index)) return skipRegex(source, index);
+  if (char === "'" || char === '"' || char === "`") {
+    let cursor = index + 1;
+    while (cursor < source.length) {
+      const current = source[cursor];
+      cursor += 1;
+      if (current === "\\") {
+        cursor += 1;
+        continue;
+      }
+      if (current === char) break;
+    }
+    return cursor;
+  }
+  return index;
 }
 
 function matchingBrace(source: string, open: number): number {

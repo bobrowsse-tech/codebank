@@ -130,7 +130,10 @@ export async function proposeCandidate(home: string, proposal: Proposal): Promis
   if (proposal.files.length === 0 || proposal.files.length > 20) return { ok: false, reason: "A proposal has 1 to 20 files." };
   const bytes = proposal.files.reduce((sum, file) => sum + Buffer.byteLength(file.content), 0);
   if (bytes > 200_000) return { ok: false, reason: "A proposal is larger than 200 KB." };
-  if (problemsForFiles(proposal.files).length > 0) return { ok: false, reason: "A proposal path is not relative." };
+  const fileProblems = problemsForFiles(proposal.files);
+  if (fileProblems.length > 0) {
+    return { ok: false, reason: fileProblems.some((problem) => problem.startsWith("duplicate ")) ? "A proposal repeats a file path." : "A proposal path is not relative." };
+  }
   for (const file of proposal.files) {
     try {
       assertSafeRelPath(file.relPath);

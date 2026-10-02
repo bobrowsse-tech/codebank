@@ -96,6 +96,17 @@ test("the mcp server speaks raw json lines", async () => {
   assert.equal(listCandidates(home)[0]?.proposedBy, "agent");
   assert.deepEqual(listCandidates(home)[0]?.draft.deps, [{ name: "lodash", range: "^4.17.21" }]);
 
+  send({
+    jsonrpc: "2.0",
+    id: 7,
+    method: "tools/call",
+    params: {
+      name: "codebank_propose",
+      arguments: { title: { bad: true }, intent: "Formats cents.", tags: ["currency"], files: [{ relPath: "src/format.ts", content: "export const amount = 1;\n" }] },
+    },
+  });
+  assert.equal(JSON.parse(await next()).error.code, -32602);
+
   child.stdin.write("null\n");
   assert.equal(JSON.parse(await next()).error.code, -32600);
 

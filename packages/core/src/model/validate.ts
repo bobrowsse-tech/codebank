@@ -66,7 +66,21 @@ export function problemsForOrigin(origin: Origin): string[] {
 }
 
 export function problemsForFiles(files: SourceFile[]): string[] {
-  return files.flatMap((file) => (safeRel(file.relPath) ? [] : [`rejected path ${file.relPath}`]));
+  const seen = new Set<string>();
+  const problems: string[] = [];
+  for (const file of files) {
+    if (!safeRel(file.relPath)) {
+      problems.push(`rejected path ${file.relPath}`);
+      continue;
+    }
+    const destination = file.relPath
+      .split(/[\\/]/)
+      .filter((part) => part !== "" && part !== ".")
+      .join("/");
+    if (seen.has(destination)) problems.push(`duplicate path ${destination}`);
+    seen.add(destination);
+  }
+  return problems;
 }
 
 export function problemsForCandidate(candidate: Candidate): string[] {

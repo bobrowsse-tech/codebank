@@ -33,6 +33,7 @@ test("propose keeps every file named after --files", async () => {
     fs.writeFileSync(first, "export const first = 1;\n");
     fs.writeFileSync(second, "export const second = 2;\n");
     assert.equal(await run(["propose", "--title", "Two files", "--intent", "Keeps both.", "--tags", "files", "--files", first, second]), 0);
+    assert.equal(await run(["propose", "--title", "Missing", "--intent", "Unreadable.", "--files", path.join(dir, "missing.ts")]), 1);
     assert.equal(listCandidates(home)[0]?.files.length, 2);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

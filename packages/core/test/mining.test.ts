@@ -174,6 +174,32 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   const units = extractUnits(source);
   assert.equal(units.length, 1);
   assert.match(units[0].content, /return rows/);
+  const withDefault = [
+    "export function formatRows(options = {}) {",
+    "  const rows = [1];",
+    "  const more = [2];",
+    "  const rest = [3];",
+    "  const last = [4];",
+    "  const extra = [5];",
+    "  return rows.concat(more, rest, last, extra, options);",
+    "}",
+  ].join("\n");
+  const formatted = extractUnits(withDefault);
+  assert.equal(formatted[0]?.name, "formatRows");
+  assert.match(formatted[0]?.content ?? "", /return rows.concat/);
+  const arrow = [
+    "export const buildRows = () => ({",
+    "  a: 1,",
+    "  b: 2,",
+    "  c: 3,",
+    "  d: 4,",
+    "  e: 5,",
+    "  f: 6,",
+    "});",
+  ].join("\n");
+  const built = extractUnits(arrow);
+  assert.equal(built[0]?.name, "buildRows");
+  assert.match(built[0]?.content ?? "", /\}\);/);
   const expression = extractUnits(padded("parseRows", 8).replace("export function parseRows", "export const parseRows = function"));
   assert.equal(expression[0]?.name, "parseRows");
 
@@ -219,6 +245,11 @@ test("a mined unit keeps the imports it uses", async () => {
   const body = "export function greet(user: User) {\n  return user;\n}\n";
   assert.match(withRequiredImports(`import { type User } from "./types";\n${body}`, body), /import \{ type User \} from "\.\/types"/);
   assert.match(withRequiredImports(`import type User from "./types";\n${body}`, body), /import type User from "\.\/types"/);
+  const sideEffect = `import "./setup";\nconst extra = 1;\nimport { rows } from "./rows";\n${body.replace("return user;", "return rows(user);")}`;
+  const kept = withRequiredImports(sideEffect, body.replace("return user;", "return rows(user);"));
+  assert.match(kept, /import \{ rows \} from "\.\/rows"/);
+  assert.doesNotMatch(kept, /setup/);
+  assert.doesNotMatch(kept, /const extra/);
   assert.equal(isPackageDep({ name: "typescript", range: "^18" }), true);
   assert.equal(isPackageDep({ name: "lodash", range: "~1.2" }), true);
   assert.equal(isPackageDep({ name: "lodash", range: "1.x" }), true);
@@ -247,6 +278,48 @@ test("a root generated directory is not scanned", async () => {
     files: [{ relPath: "src/blank.ts", content: "export function blank() { return 1; }\n" }],
   });
   assert.equal(blank.ok, false);
+  const repeated = await proposeCandidate(home, {
+    title: "Repeated path",
+    intent: "Two files land on one path.",
+    tags: ["files"],
+    files: [
+      { relPath: "src/a.ts", content: "export function first() { return 1; }\n" },
+      { relPath: "src/./a.ts", content: "export function second() { return 2; }\n" },
+    ],
+  });
+  assert.equal(repeated.ok, false);
+});
+
+test("recall skips a stale entry", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-stale-recall-"));
+  ensureHome(home);
+  await saveEntry(
+    home,
+    {
+      slug: "filtering",
+      title: "filtering",
+      language: "ts",
+      entryFile: "src/filterRows.ts",
+      symbols: ["filterRows"],
+      tags: ["filtering"],
+      intent: "Filters table rows by text.",
+      deps: [],
+      origin: {
+        repoId: "fixture",
+        repoName: "fixture",
+        relPath: "src/filterRows.ts",
+        range: { startLine: 1, endLine: 8 },
+        capturedBy: "manual",
+      },
+      ownership: "personal",
+    },
+    [{ relPath: "src/filterRows.ts", content: "export function filterRows() { return []; }\n" }],
+  );
+  const entryPath = path.join(home, "entries", "filtering", "entry.json");
+  const entry = JSON.parse(fs.readFileSync(entryPath, "utf8")) as { status: string };
+  entry.status = "stale";
+  fs.writeFileSync(entryPath, JSON.stringify(entry));
+  assert.equal(suggestRecall(home, { filePath: "src/useFilters.ts", text: "", repoId: "repo", targetOrg: "fixture" }), undefined);
 });
 
 test("a tracked symlink is not read", async () => {

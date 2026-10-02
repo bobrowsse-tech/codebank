@@ -155,7 +155,7 @@ export function withRequiredImports(source: string, slice: string): string {
 
 function importStatements(source: string): string[] {
   const statements: string[] = [];
-  const pattern = /(?:^|\n)\s*(import\s[\s\S]*?from\s*['"][^'"]+['"]\s*;?|import\s*['"][^'"]+['"]\s*;?|(?:const|let|var)\s+[^;\n]*require\(\s*['"][^'"]+['"]\s*\)\s*;?)/g;
+  const pattern = /(?:^|\n)\s*(import\s*['"][^'"]+['"]\s*;?|import\s[\s\S]*?from\s*['"][^'"]+['"]\s*;?|(?:const|let|var)\s+[^;\n]*require\(\s*['"][^'"]+['"]\s*\)\s*;?)/g;
   for (const match of source.matchAll(pattern)) {
     const statement = match[1]?.trim();
     if (statement) statements.push(statement);

@@ -49,13 +49,13 @@ export async function run(argv: string[]): Promise<number> {
       case "doctor":
         return doctor(rest);
       case "mine":
-        return mineCommand(rest);
+        return await mineCommand(rest);
       case "inbox":
-        return inboxCommand(rest);
+        return await inboxCommand(rest);
       case "propose":
-        return proposeCommand(rest);
+        return await proposeCommand(rest);
       case "mcp":
-        return serveMcp(ensureAndHome());
+        return await serveMcp(ensureAndHome());
       case "skill":
         return skillCommand(rest);
       default:
