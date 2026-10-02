@@ -65,7 +65,10 @@ export function handleLine(home: string, line: string): string | undefined {
   } catch {
     return rpcError(null, -32700, "Parse error");
   }
-  if (message.jsonrpc !== "2.0" || !message.method) return rpcError(message.id ?? null, -32600, "Invalid Request");
+  if (!message || typeof message !== "object" || message.jsonrpc !== "2.0" || typeof message.method !== "string") {
+    const id = message && typeof message === "object" ? (message.id ?? null) : null;
+    return rpcError(id, -32600, "Invalid Request");
+  }
   if (message.method === "notifications/initialized") return undefined;
   if (message.id === undefined) return undefined;
   try {

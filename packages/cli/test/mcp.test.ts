@@ -96,6 +96,9 @@ test("the mcp server speaks raw json lines", async () => {
   assert.equal(listCandidates(home)[0]?.proposedBy, "agent");
   assert.deepEqual(listCandidates(home)[0]?.draft.deps, [{ name: "lodash", range: "^4.17.21" }]);
 
+  child.stdin.write("null\n");
+  assert.equal(JSON.parse(await next()).error.code, -32600);
+
   send({ jsonrpc: "2.0", id: 6, method: "tools/missing" });
   assert.equal(JSON.parse(await next()).error.code, -32601);
 
