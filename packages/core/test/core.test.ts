@@ -161,7 +161,16 @@ test("insert writes a marker only when apply is called, and does not run install
     targetOrg: "bobrowsse-tech",
   });
   assert.deepEqual(fs.readdirSync(project), before);
-  assert.match(plan.installCommand ?? "", /^npm install lodash@/);
+  assert.match(plan.installCommand ?? "", /^npm install 'lodash@/);
+  const quoted = planInsert({
+    entry: { ...saved.entry, deps: [{ name: "left-pad", range: ">=1.2.3" }] },
+    files: closure.files,
+    mode: "add",
+    targetLanguage: "ts",
+    targetPackageJson: path.join(project, "package.json"),
+    targetOrg: "bobrowsse-tech",
+  });
+  assert.equal(quoted.installCommand, "npm install 'left-pad@>=1.2.3'");
   const written = applyInsert(project, "src/codebank", plan);
   const marked = fs.readFileSync(written[0], "utf8");
   assert.match(marked.split("\n")[0], /^\/\/ @codebank filtering v1 [a-f0-9]{12}$/);

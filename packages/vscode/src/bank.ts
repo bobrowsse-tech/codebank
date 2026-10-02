@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { listEntries, type Entry } from "../../core/src/index.ts";
+import { listCandidates, listEntries, type Entry } from "../../core/src/index.ts";
 
 export class BankView implements vscode.TreeDataProvider<BankNode> {
   private readonly change = new vscode.EventEmitter<void>();
@@ -30,12 +30,30 @@ export class BankView implements vscode.TreeDataProvider<BankNode> {
 }
 
 export class InboxView implements vscode.TreeDataProvider<BankNode> {
-  readonly onDidChangeTreeData = new vscode.EventEmitter<void>().event;
+  private readonly change = new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData = this.change.event;
+
+  constructor(private readonly home: () => string) {}
+
+  refresh(): void {
+    this.change.fire();
+  }
+
   getTreeItem(element: BankNode): vscode.TreeItem {
     return element;
   }
+
   getChildren(): BankNode[] {
-    return [new BankNode("Candidates from a scan show up here.", "empty")];
+    const candidates = listCandidates(this.home());
+    if (candidates.length === 0) return [new BankNode("Candidates from a scan show up here.", "empty")];
+    return candidates.map((candidate) => {
+      const label = candidate.proposedBy === "agent" ? `${candidate.draft.title} · agent-proposed` : candidate.draft.title;
+      const node = new BankNode(label, "candidate", candidate.id);
+      const sources = candidate.sources.map((source) => source.repoName).filter((name, index, all) => all.indexOf(name) === index);
+      node.description = `${candidate.score.toFixed(2)} · ${candidate.reasons[0] ?? candidate.proposedBy}${sources.length > 0 ? ` · ${sources.join(", ")}` : ""}`;
+      node.command = { command: "codebank.previewCandidate", title: "Preview", arguments: [candidate.id] };
+      return node;
+    });
   }
 }
 
@@ -52,7 +70,7 @@ export class UpdatesView implements vscode.TreeDataProvider<BankNode> {
 class BankNode extends vscode.TreeItem {
   constructor(
     readonly labelText: string,
-    readonly kind: "tag" | "entry" | "empty",
+    readonly kind: "tag" | "entry" | "candidate" | "empty",
     readonly slug?: string,
   ) {
     super(labelText, kind === "tag" ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None);

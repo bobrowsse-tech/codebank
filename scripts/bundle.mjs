@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { build } from "esbuild";
 
 await build({
@@ -17,6 +18,7 @@ await build({
   format: "esm",
   banner: { js: "#!/usr/bin/env node" },
 });
+fs.copyFileSync("skills/codebank/SKILL.md", "packages/cli/dist/SKILL.md");
 
 await build({
   entryPoints: ["packages/vscode/src/extension.ts"],
@@ -25,4 +27,12 @@ await build({
   platform: "node",
   format: "cjs",
   external: ["vscode"],
+});
+
+await build({
+  entryPoints: ["packages/vscode/src/mine-worker.ts"],
+  outfile: "packages/vscode/dist/mine-worker.js",
+  bundle: true,
+  platform: "node",
+  format: "cjs",
 });

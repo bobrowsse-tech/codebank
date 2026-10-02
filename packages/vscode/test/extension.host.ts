@@ -19,8 +19,10 @@ suite("Codebank", function () {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes("codebank.deposit"));
     assert.ok(commands.includes("codebank.search"));
+    assert.ok(commands.includes("codebank.mine"));
     assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_search"));
     assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_get"));
+    assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_propose"));
   });
 
   test("#codebank filtering returns the banked card", async () => {
