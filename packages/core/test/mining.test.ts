@@ -62,6 +62,21 @@ test("an agent proposal stays in the inbox until it is accepted", async () => {
     files: [{ relPath: "src/plain.ts", content: "const value = 1;\n" }],
   });
   assert.equal(unnamed.ok, false);
+  const fallback = proposeCandidate(home, {
+    title: "Default only",
+    intent: "A default export.",
+    tags: [],
+    files: [{ relPath: "src/fallback.ts", content: "export default function Foo() { return 1; }\n" }],
+  });
+  assert.equal(fallback.ok, false);
+  const injected = proposeCandidate(home, {
+    title: "Bad range",
+    intent: "Unsafe dependency.",
+    tags: [],
+    files: [{ relPath: "src/format.ts", content: "export function formatCurrency() { return 1; }\n" }],
+    deps: [{ name: "lodash", range: "^1; touch /tmp/owned" }],
+  });
+  assert.equal(injected.ok, false);
   const blocked = proposeCandidate(home, {
     title: "Leaked",
     intent: "nope",
@@ -152,6 +167,8 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   const units = extractUnits(source);
   assert.equal(units.length, 1);
   assert.match(units[0].content, /return rows/);
+  const expression = extractUnits(padded("parseRows", 8).replace("export function parseRows", "export const parseRows = function"));
+  assert.equal(expression[0]?.name, "parseRows");
 
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-ignore-"));
   ensureHome(home);
@@ -181,6 +198,33 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   assert.equal(cancelled.cancelled, true);
   assert.equal(listCandidates(cancelledHome).length, 0);
 });
+
+test("secrets and private functions stay out of the inbox", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-secret-mine-"));
+  ensureHome(home);
+  const secret = padded("leakRows", 8).replace("return rows;", 'const key = "AKIAIOSFODNN7EXAMPLE";\n  return rows;');
+  const leaked = [secret, secret].map((content) => repoWith({ "src/leak.ts": content }));
+  await mine(home, { roots: leaked });
+  assert.equal(listCandidates(home).length, 0);
+
+  const hiddenHome = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-private-mine-"));
+  ensureHome(hiddenHome);
+  const hidden = padded("sharedRows", 12).replace("export function", "function");
+  await mine(hiddenHome, { roots: [hidden, hidden].map((content) => repoWith({ "src/shared.ts": content })) });
+  assert.equal(listCandidates(hiddenHome).length, 0);
+});
+
+function repoWith(files: Record<string, string>): string {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-unit-repo-"));
+  for (const [rel, content] of Object.entries(files)) {
+    const full = path.join(repo, rel);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, content);
+  }
+  execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+  execFileSync("git", ["add", "-A"], { cwd: repo, stdio: "ignore" });
+  return repo;
+}
 
 function padded(name: string, lines: number): string {
   const body = [`export function ${name}(rows: string[]) {`];

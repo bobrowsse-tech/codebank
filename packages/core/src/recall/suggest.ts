@@ -21,7 +21,7 @@ const VERBS = ["implement", "add", "write", "need", "todo"];
 
 export function suggestRecall(
   home: string,
-  input: { filePath: string; text: string; repoId: string; targetOrg?: string; now?: number; enabled?: boolean; threshold?: number },
+  input: { filePath: string; text: string; repoId: string; targetOrg?: string; now?: number; enabled?: boolean; threshold?: number; pasted?: string },
 ): RecallSuggestion | undefined {
   const config = loadConfig(home);
   const enabled = input.enabled ?? config.recall.enabled;
@@ -31,7 +31,7 @@ export function suggestRecall(
   const lines = input.text.split("\n");
   const filename = lines.length < 5 ? filenameSignal(home, input) : undefined;
   const comment = filename ? undefined : commentSignal(home, input);
-  const paste = filename || comment ? undefined : pasteSignal(home, input);
+  const paste = filename || comment || !input.pasted ? undefined : pasteSignal(home, { ...input, text: input.pasted });
   const suggestion = filename ?? comment ?? paste;
   if (!suggestion) return undefined;
   if (suggestion.score < threshold) return undefined;

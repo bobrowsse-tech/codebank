@@ -3,6 +3,12 @@ import type { BankConfig, Candidate, Entry, Language, Origin, SourceFile } from 
 import { SchemaError } from "./types";
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,47}$/;
+const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+const PACKAGE_RANGE = /^(?:\*|(?:[\^~]|>=|<=|>|<)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/;
+
+export function isPackageDep(dep: { name: string; range: string }): boolean {
+  return PACKAGE_NAME.test(dep.name) && PACKAGE_RANGE.test(dep.range);
+}
 const LANGUAGES = new Set<Language>(["ts", "tsx", "js", "jsx", "css", "scss", "other"]);
 
 export function requireSchema(value: unknown, label: string): { schema: number } {

@@ -7,7 +7,7 @@ export interface UnitSpan {
 }
 
 const START =
-  /(?:^|\n)([ \t]*)((?:export\s+)?)((?:async\s+)?function\s+[A-Za-z_$][\w$]*|(?:async\s+)?const\s+[A-Za-z_$][\w$]*\s*=\s*(?:async\s*)?(?:\([^)\n]*\)|[A-Za-z_$][\w$]*)\s*=>|class\s+[A-Za-z_$][\w$]*)/g;
+  /(?:^|\n)([ \t]*)((?:export\s+)?)((?:async\s+)?function\s+[A-Za-z_$][\w$]*|(?:async\s+)?const\s+[A-Za-z_$][\w$]*\s*=\s*(?:async\s*)?(?:\([^)\n]*\)|[A-Za-z_$][\w$]*)\s*=>|const\s+[A-Za-z_$][\w$]*\s*=\s*(?:async\s+)?function\b|class\s+[A-Za-z_$][\w$]*)/g;
 
 export function extractUnits(source: string): UnitSpan[] {
   const units: UnitSpan[] = [];

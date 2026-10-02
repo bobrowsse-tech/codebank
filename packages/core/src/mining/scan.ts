@@ -307,7 +307,9 @@ function emitCandidates(home: string, groups: FoundUnit[][]): Candidate[] {
       startLine: representative.startLine,
       endLine: representative.endLine,
     });
+    if (!representative.exported) continue;
     const files = closure.files.length > 0 ? closure.files : [{ relPath: representative.relPath, content: representative.content }];
+    if (scanSecrets(files.map((file) => file.content).join("\n")).some((finding) => finding.severity === "block")) continue;
     const ownership = resolveOwnership(representative.org, config);
     const candidate: Candidate = {
       schema: 1,
@@ -354,9 +356,11 @@ function emitCandidates(home: string, groups: FoundUnit[][]): Candidate[] {
 }
 
 function pickRepresentative(group: FoundUnit[]): FoundUnit {
-  const tested = group.filter((unit) => unit.hasTest);
-  const pool = tested.length > 0 ? tested : group;
-  return pool.reduce((best, unit) => (unit.mtimeMs > best.mtimeMs ? unit : best));
+  const exported = group.filter((unit) => unit.exported);
+  const pool = exported.length > 0 ? exported : group;
+  const tested = pool.filter((unit) => unit.hasTest);
+  const choice = tested.length > 0 ? tested : pool;
+  return choice.reduce((best, unit) => (unit.mtimeMs > best.mtimeMs ? unit : best));
 }
 
 function rank(group: FoundUnit[]): number {

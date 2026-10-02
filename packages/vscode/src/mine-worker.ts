@@ -14,4 +14,5 @@ mine(data.home, {
   onProgress: (progress) => parentPort?.postMessage({ type: "progress", progress }),
 })
   .then((result) => parentPort?.postMessage({ type: "done", result }))
-  .catch((error: unknown) => parentPort?.postMessage({ type: "error", message: error instanceof Error ? error.message : String(error) }));
+  .catch((error: unknown) => parentPort?.postMessage({ type: "error", message: error instanceof Error ? error.message : String(error) }))
+  .finally(() => parentPort?.close());

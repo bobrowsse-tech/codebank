@@ -5,7 +5,7 @@ import { languageFromFile } from "../closure/extract";
 import { contentHash } from "../closure/hash";
 import { logStage } from "../log";
 import type { Candidate, SourceFile } from "../model/types";
-import { problemsForCandidate, problemsForFiles, toSlug } from "../model/validate";
+import { isPackageDep, problemsForCandidate, problemsForFiles, toSlug } from "../model/validate";
 import { scanSecrets } from "../security/secrets";
 import { atomicWriteJson, readJson } from "./atomic";
 import { saveEntry, type SaveOutcome } from "./entries";
@@ -100,7 +100,7 @@ function primaryExport(content: string): string | undefined {
   const named = content.match(/export\s*\{([^}]+)\}/);
   const first = named?.[1].split(",")[0]?.trim().split(/\s+as\s+/).pop()?.trim();
   if (first && /^[A-Za-z_$][\w$]*$/.test(first)) return first;
-  return content.match(/export\s+default\s+(?:async\s+)?(?:function|class)\s+([A-Za-z_$][\w$]*)/)?.[1];
+  return undefined;
 }
 
 export interface Proposal {
@@ -127,7 +127,8 @@ export function proposeCandidate(home: string, proposal: Proposal): { ok: true; 
   const findings = scanSecrets(proposal.files.map((file) => file.content).join("\n")).filter((finding) => finding.severity === "block");
   if (findings.length > 0) return { ok: false, reason: "A proposal contains a secret." };
   const symbol = primaryExport(proposal.files[0].content);
-  if (!symbol) return { ok: false, reason: "A proposal needs an exported name." };
+  if (!symbol) return { ok: false, reason: "A proposal needs a named export." };
+  if ((proposal.deps ?? []).some((dep) => !isPackageDep(dep))) return { ok: false, reason: "A proposal dependency is not a plain package range." };
   const id = createHash("sha256").update(`${proposal.title}\n${contentHash(proposal.files)}`).digest("hex").slice(0, 16);
   const candidate: Candidate = {
     schema: 1,

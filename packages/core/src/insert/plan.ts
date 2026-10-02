@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { logStage } from "../log";
 import type { Entry, Language, SourceFile } from "../model/types";
+import { isPackageDep } from "../model/validate";
 import { crossOrgBlocked } from "../security/ownership";
 import { atomicWrite } from "../store/atomic";
 import { resolveInside } from "../store/paths";
@@ -57,7 +58,7 @@ export function planInsert(input: {
     })),
     importLine,
     missingDeps,
-    installCommand: missingDeps.length > 0 ? `npm install ${missingDeps.map((dep) => `${dep.name}@${dep.range}`).join(" ")}` : undefined,
+    installCommand: installCommand(missingDeps),
     adapt: !verbatim,
     adaptHint: verbatim ? undefined : adaptHint(languageMatches, majorMismatch, missingDeps),
     blocked: blocked ? "cross-org" : undefined,
@@ -82,6 +83,12 @@ export function applyInsert(projectDir: string, insertDir: string, plan: InsertP
 
 export function markerLine(language: Language, slug: string, version: number, hash: string): string {
   return commentFor(language, `@codebank ${slug} v${version} ${hash}`);
+}
+
+function installCommand(deps: { name: string; range: string }[]): string | undefined {
+  const safe = deps.filter((dep) => isPackageDep(dep));
+  if (safe.length === 0) return undefined;
+  return `npm install ${safe.map((dep) => `${dep.name}@${dep.range}`).join(" ")}`;
 }
 
 function endMarkerLine(language: Language): string {

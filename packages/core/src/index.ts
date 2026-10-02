@@ -1,7 +1,7 @@
 export { setLogger, logStage } from "./log";
 export { tuning } from "./tuning";
 export * from "./model/types";
-export { defaultConfig, isSlug, parseConfig, problemsForEntry, requireSchema, toSlug } from "./model/validate";
+export { defaultConfig, isPackageDep, isSlug, parseConfig, problemsForEntry, requireSchema, toSlug } from "./model/validate";
 export { resolveHome, bankPaths, assertSafeRelPath } from "./store/paths";
 export { withLock } from "./store/lock";
 export { ensureHome, loadConfig, saveConfig } from "./store/config";
