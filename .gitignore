@@ -1,10 +1,12 @@
 node_modules/
 dist/
+dist-tests/
 out/
 *.vsix
 *.tsbuildinfo
 coverage/
 .vscode-test/
+out-test/
 .env
 .env.*
 *.log
