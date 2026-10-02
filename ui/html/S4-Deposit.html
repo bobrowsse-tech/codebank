@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Deposit</title><style>body{margin:0;padding:24px;background:#161616}a{color:#4daafc}div[style*="monospace"] span{white-space:pre}</style></head><body>
+
+<div style="width:1200px;height:760px;box-sizing:border-box;background:#1f1f1f;color:#cccccc;font:13px/20px system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;border:1px solid #2b2b2b;border-radius:10px;overflow:hidden">
+
+<div style="width:520px;flex:none;display:flex;flex-direction:column;border-right:1px solid #2b2b2b;box-sizing:border-box">
+<div style="height:35px;flex:none;background:#181818;border-bottom:1px solid #2b2b2b;display:flex;align-items:flex-end">
+<div style="height:35px;padding:0 16px;display:flex;align-items:center;background:#1f1f1f;border-right:1px solid #2b2b2b;box-sizing:border-box;color:#ffffff">filterRows.ts</div>
+</div>
+<div style="padding:12px 0;font:13px/20px ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#d4d4d4">
+<div style="display:flex;opacity:0.5"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">11</span><span><span style="color:#569cd6">import type</span> { Filters } <span style="color:#569cd6">from</span> <span style="color:#ce9178">'./types'</span>;</span></div>
+<div style="display:flex;opacity:0.5"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">12</span><span></span></div>
+<div style="display:flex;background:#264f78"><span style="width:44px;text-align:right;padding-right:16px;color:#c6c6c6;flex:none">13</span><span><span style="color:#569cd6">export function</span> <span style="color:#dcdcaa">filterRows</span>&lt;T&gt;(rows: T[], f: Filters&lt;T&gt;): T[] {</span></div>
+<div style="display:flex;background:#264f78"><span style="width:44px;text-align:right;padding-right:16px;color:#c6c6c6;flex:none">14</span><span>  <span style="color:#569cd6">const</span> q = f.text.trim().toLowerCase();</span></div>
+<div style="display:flex;background:#264f78"><span style="width:44px;text-align:right;padding-right:16px;color:#c6c6c6;flex:none">15</span><span>  <span style="color:#569cd6">return</span> rows.<span style="color:#dcdcaa">filter</span>((r) =&gt; {</span></div>
+<div style="display:flex;background:#264f78"><span style="width:44px;text-align:right;padding-right:16px;color:#c6c6c6;flex:none">16</span><span>    <span style="color:#569cd6">if</span> (q &amp;&amp; !f.fields.<span style="color:#dcdcaa">some</span>(<span style="color:#9cdcfe">matches</span>(r, q))) <span style="color:#569cd6">return false</span>;</span></div>
+<div style="display:flex;background:#264f78"><span style="width:44px;text-align:right;padding-right:16px;color:#c6c6c6;flex:none">17</span><span>    <span style="color:#569cd6">if</span> (f.range &amp;&amp; !<span style="color:#dcdcaa">inRange</span>(r, f.range)) <span style="color:#569cd6">return false</span>;</span></div>
+<div style="display:flex;background:#264f78"><span style="width:44px;text-align:right;padding-right:16px;color:#c6c6c6;flex:none">18</span><span>    <span style="color:#569cd6">return true</span>;</span></div>
+<div style="display:flex;background:#264f78"><span style="width:44px;text-align:right;padding-right:16px;color:#c6c6c6;flex:none">19</span><span>  });</span></div>
+<div style="display:flex;background:#264f78"><span style="width:44px;text-align:right;padding-right:16px;color:#c6c6c6;flex:none">20</span><span>}</span></div>
+<div style="display:flex;opacity:0.5"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">21</span><span></span></div>
+<div style="display:flex;opacity:0.5"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">22</span><span><span style="color:#569cd6">function</span> <span style="color:#dcdcaa">matches</span>(r: <span style="color:#4ec9b0">unknown</span>, q: <span style="color:#4ec9b0">string</span>) { ... }</span></div>
+</div>
+<div style="margin:8px 16px;padding:10px 12px;border:1px solid #3c3c3c;border-radius:6px;background:#181818;color:#9d9d9d;font-size:12px">Selection expanded to the whole function <span style="font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#cccccc">filterRows</span> (lines 13 to 20). <a href="#">Undo expansion</a></div>
+</div>
+
+<div style="flex:1;display:flex;flex-direction:column;min-width:0">
+<div style="height:35px;flex:none;background:#181818;border-bottom:1px solid #2b2b2b;display:flex;align-items:flex-end">
+<div style="height:35px;padding:0 16px;display:flex;align-items:center;gap:8px;background:#1f1f1f;border-right:1px solid #2b2b2b;border-top:1px solid #0078d4;box-sizing:border-box;color:#ffffff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9d9d9d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></svg>Codebank: Deposit</div>
+</div>
+
+<div style="padding:20px 28px 0 28px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+<div style="display:flex;align-items:baseline;justify-content:space-between"><h2 style="margin:0;font-size:18px;line-height:26px;font-weight:600;color:#ffffff">Deposit to Codebank</h2><span style="font-size:12px;color:#9d9d9d">Nothing is saved until you press Save</span></div>
+
+<div style="background:#181818;border:1px solid #2b2b2b;border-radius:6px;padding:12px 14px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="color:#ffffff;font-weight:600">Closure: 3 files, 142 lines, 4.1 KB</div><div style="color:#2ea043;font-size:12px;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>complete, depth 2</div></div>
+<div style="margin-top:8px;display:flex;flex-direction:column;gap:2px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px">
+<div style="display:flex;justify-content:space-between"><span>src/lib/filters/filterRows.ts</span><span style="color:#9d9d9d">64 lines · primary</span></div>
+<div style="display:flex;justify-content:space-between"><span>src/lib/filters/types.ts</span><span style="color:#9d9d9d">41 lines</span></div>
+<div style="display:flex;justify-content:space-between"><span>src/lib/filters/inRange.ts</span><span style="color:#9d9d9d">37 lines</span></div>
+</div>
+<div style="margin-top:8px;font-size:12px;color:#cca700">1 warning: import './format' in types.ts was not included (relative import outside the closure). <a href="#">Include it</a></div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<div><div style="font-size:12px;color:#9d9d9d;margin-bottom:3px">Title</div><div style="height:28px;box-sizing:border-box;background:#313131;border:1px solid #3c3c3c;border-radius:2px;display:flex;align-items:center;padding:0 8px;color:#ffffff">filtering</div></div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:#9d9d9d;margin-bottom:3px"><span>What it does</span><span>Drafted by your editor's language model, edit freely · 118 of 280</span></div>
+<div style="min-height:52px;box-sizing:border-box;background:#313131;border:1px solid #3c3c3c;border-radius:2px;padding:6px 8px;color:#ffffff">Filters table rows by text, numeric ranges and enums, with debounced input.</div>
+</div>
+<div>
+<div style="font-size:12px;color:#9d9d9d;margin-bottom:3px">When not to use it</div>
+<div style="min-height:28px;box-sizing:border-box;background:#313131;border:1px solid #3c3c3c;border-radius:2px;padding:4px 8px;color:#ffffff">Server-side filtering or pagination.</div>
+</div>
+<div style="display:flex;gap:24px">
+<div style="flex:1"><div style="font-size:12px;color:#9d9d9d;margin-bottom:3px">Tags</div><div style="display:flex;gap:6px;flex-wrap:wrap"><span style="padding:0 8px;border-radius:10px;background:#2b2b2b;font-size:12px">table</span><span style="padding:0 8px;border-radius:10px;background:#2b2b2b;font-size:12px">filtering</span><span style="padding:0 8px;border-radius:10px;background:#2b2b2b;font-size:12px">debounce</span><span style="padding:0 8px;border-radius:10px;border:1px dashed #6e7681;font-size:12px;color:#9d9d9d">add</span></div></div>
+<div style="flex:1"><div style="font-size:12px;color:#9d9d9d;margin-bottom:3px">Dependencies</div><div style="display:flex;gap:6px"><span style="padding:0 8px;border-radius:10px;border:1px solid #3c3c3c;font-size:12px;color:#9d9d9d">none found</span></div></div>
+<div style="flex:1"><div style="font-size:12px;color:#9d9d9d;margin-bottom:3px">Ownership</div><div style="height:26px;box-sizing:border-box;background:#313131;border:1px solid #3c3c3c;border-radius:2px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;color:#ffffff">Personal<span style="color:#9d9d9d;font-size:12px">from remote</span></div></div>
+</div>
+</div>
+
+<div style="display:flex;gap:12px">
+<div style="flex:1;border:1px solid #2b2b2b;border-radius:6px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2ea043" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="M5 12l5 5 9-10"/></svg><div><div style="color:#ffffff">Secret scan: clean</div><div style="font-size:12px;color:#9d9d9d">3 files checked</div></div></div>
+<div style="flex:1;border:1px solid #cca700;border-radius:6px;padding:10px 12px"><div style="color:#ffffff">Similar entry exists</div><div style="font-size:12px;color:#9d9d9d">filtering v3 matches at 0.84.</div><div style="display:flex;gap:12px;margin-top:4px;font-size:12px"><a href="#">Open existing</a><a href="#">Save as variant</a><a href="#">Replace as v4</a></div></div>
+</div>
+
+<div style="display:flex;align-items:center;gap:10px;padding-top:2px">
+<div style="height:30px;padding:0 18px;border-radius:4px;background:#0078d4;color:#ffffff;display:flex;align-items:center;font-weight:600">Save to bank</div>
+<div style="height:30px;padding:0 14px;border-radius:4px;border:1px solid #3c3c3c;display:flex;align-items:center">Cancel</div>
+<div style="margin-left:auto;font-size:12px;color:#9d9d9d">Model draft sent 3 files, 4.1 KB. <a href="#">Change model settings</a></div>
+</div>
+
+<div style="display:flex;gap:10px;font-size:12px;color:#9d9d9d">
+<div style="flex:1;border:1px dashed #3c3c3c;border-radius:6px;padding:6px 10px"><span style="color:#f85149">Secret found:</span> Save is disabled. Line 8 looks like an API key. <a href="#">Remove</a> or <a href="#">mark as false positive</a>.</div>
+<div style="flex:1;border:1px dashed #3c3c3c;border-radius:6px;padding:6px 10px"><span style="color:#cca700">No model available:</span> fill in the description yourself. Title and tags are prefilled.</div>
+</div>
+
+</div>
+</div>
+</div>
+</body></html>

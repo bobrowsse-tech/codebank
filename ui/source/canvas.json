@@ -1,0 +1,34 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-01T20:50:00Z" },
+  "title": "Codebank UI",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1120, "h": 800, "title": "S1 First-run scan" },
+    "S2-Bank-view.dc.html": { "x": 1200, "y": 0, "w": 1120, "h": 900, "title": "S2 Bank view" },
+    "S3-Search-insert.dc.html": { "x": 0, "y": 1020, "w": 1120, "h": 720, "title": "S3 Search and insert" },
+    "S4-Deposit.dc.html": { "x": 1200, "y": 1020, "w": 1200, "h": 760, "title": "S4 Deposit" },
+    "S5-Recall.dc.html": { "x": 0, "y": 1900, "w": 1000, "h": 900, "title": "S5 Recall suggestion" },
+    "S6-Inbox.dc.html": { "x": 1080, "y": 1900, "w": 1200, "h": 760, "title": "S6 Inbox" },
+    "S7-Update-review.dc.html": { "x": 0, "y": 2920, "w": 1200, "h": 720, "title": "S7 Update review" },
+    "S8-Chat-result.dc.html": { "x": 1280, "y": 2920, "w": 760, "h": 860, "title": "S8 Chat result" },
+    "Tokens.dc.html": { "x": 2120, "y": 2920, "w": 1000, "h": 700, "title": "Tokens and anatomy" }
+  },
+  "order": [
+    "Main.dc.html",
+    "S2-Bank-view.dc.html",
+    "S3-Search-insert.dc.html",
+    "S4-Deposit.dc.html",
+    "S5-Recall.dc.html",
+    "S6-Inbox.dc.html",
+    "S7-Update-review.dc.html",
+    "S8-Chat-result.dc.html",
+    "Tokens.dc.html"
+  ],
+  "notes": {
+    "title": { "x": 0, "y": -260, "text": "Codebank UI: screens S1 to S8", "kind": "title1", "maxW": 2320 },
+    "sample": { "x": 1700, "y": -250, "w": 420, "text": "All names, counts and dates are sample data for illustration. Every color maps to a VS Code theme variable: see Tokens.", "fill": "blue" }
+  },
+  "designSystems": []
+}

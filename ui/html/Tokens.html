@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Tokens and anatomy</title><style>body{margin:0;padding:24px;background:#161616}a{color:#4daafc}div[style*="monospace"] span{white-space:pre}</style></head><body>
+
+<div style="width:1000px;height:700px;box-sizing:border-box;background:#1f1f1f;color:#cccccc;font:13px/20px system-ui,-apple-system,'Segoe UI',sans-serif;padding:24px 28px;display:flex;gap:28px;border:1px solid #2b2b2b;border-radius:10px;overflow:hidden">
+
+<div style="flex:1.25;display:flex;flex-direction:column;gap:6px;min-width:0">
+<h2 style="margin:0 0 6px 0;font-size:16px;line-height:24px;color:#ffffff">Color: use theme variables, never hex</h2>
+<div style="font-size:12px;color:#9d9d9d;margin-bottom:6px">The mock uses a dark sample palette. In the extension every color resolves from a VS Code variable, so light and high-contrast themes work with no extra code.</div>
+
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#1f1f1f;border:1px solid #3c3c3c;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-editor-background</span><span style="font-size:12px;color:#9d9d9d">Page and panel background</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#181818;border:1px solid #3c3c3c;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-sideBar-background</span><span style="font-size:12px;color:#9d9d9d">Cards, sidebar, status strip</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#cccccc;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-foreground</span><span style="font-size:12px;color:#9d9d9d">Body text</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#9d9d9d;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-descriptionForeground</span><span style="font-size:12px;color:#9d9d9d">Secondary and meta text</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#4daafc;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-textLink-foreground</span><span style="font-size:12px;color:#9d9d9d">Links</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#0078d4;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-button-background</span><span style="font-size:12px;color:#9d9d9d">Primary button, one per screen</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#04395e;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-list-activeSelectionBackground</span><span style="font-size:12px;color:#9d9d9d">Selected row</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#2a2d2e;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-list-hoverBackground</span><span style="font-size:12px;color:#9d9d9d">Row hover</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#2b2b2b;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-badge-background</span><span style="font-size:12px;color:#9d9d9d">Tags and counts</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#cca700;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-editorWarning-foreground</span><span style="font-size:12px;color:#9d9d9d">Stale, drift, warnings</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#f85149;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-errorForeground</span><span style="font-size:12px;color:#9d9d9d">Secret found, errors</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#2ea043;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-testing-iconPassed</span><span style="font-size:12px;color:#9d9d9d">Clean scan, done</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#2b2b2b;border:1px solid #3c3c3c;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-panel-border</span><span style="font-size:12px;color:#9d9d9d">All dividers and card borders</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#313131;border:1px solid #3c3c3c;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-input-background</span><span style="font-size:12px;color:#9d9d9d">Text fields</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:3px;background:#222222;border:1px solid #3c3c3c;flex:none"></span><span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;width:300px;flex:none">--vscode-quickInput-background</span><span style="font-size:12px;color:#9d9d9d">Search pick, toasts</span></div>
+</div>
+
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;min-width:0">
+<div>
+<h2 style="margin:0 0 6px 0;font-size:16px;line-height:24px;color:#ffffff">Type, space, shape</h2>
+<div style="font-size:12px;color:#9d9d9d;display:flex;flex-direction:column;gap:2px">
+<div>Text: <span style="font-family:ui-monospace,Menlo,Consolas,monospace;color:#cccccc">var(--vscode-font-family)</span> 13px / 20px</div>
+<div>Small: 12px / 18px, meta and hints</div>
+<div>Heading: 18px / 26px, weight 600, one per panel</div>
+<div>Code: <span style="font-family:ui-monospace,Menlo,Consolas,monospace;color:#cccccc">var(--vscode-editor-font-family)</span></div>
+<div>Spacing steps: 4, 8, 12, 16, 24, 28</div>
+<div>Radius: 2 inputs, 4 buttons, 6 cards, 10 tags</div>
+<div>Row heights: 22 list, 48 pick, 26 and 30 buttons</div>
+</div>
+</div>
+
+<div>
+<h2 style="margin:0 0 6px 0;font-size:16px;line-height:24px;color:#ffffff">Icons</h2>
+<div style="font-size:12px;color:#9d9d9d">Use built-in codicons only. No custom icon font.</div>
+<div style="font-size:12px;margin-top:4px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#cccccc;line-height:18px">archive · search · inbox · sync · warning · lock · check · info · add · trash · diff · lightbulb</div>
+</div>
+
+<div>
+<h2 style="margin:0 0 6px 0;font-size:16px;line-height:24px;color:#ffffff">Screen to native surface</h2>
+<div style="border:1px solid #2b2b2b;border-radius:6px;overflow:hidden;font-size:12px">
+<div style="display:flex;padding:4px 10px;background:#181818"><span style="width:92px;flex:none;color:#ffffff">S1 Scan</span><span>Webview panel</span></div>
+<div style="display:flex;padding:4px 10px"><span style="width:92px;flex:none;color:#ffffff">S2 Bank</span><span>TreeView + webview</span></div>
+<div style="display:flex;padding:4px 10px;background:#181818"><span style="width:92px;flex:none;color:#ffffff">S3 Search</span><span>QuickPick + preview editor</span></div>
+<div style="display:flex;padding:4px 10px"><span style="width:92px;flex:none;color:#ffffff">S4 Deposit</span><span>Webview panel</span></div>
+<div style="display:flex;padding:4px 10px;background:#181818"><span style="width:92px;flex:none;color:#ffffff">S5 Recall</span><span>CodeLens + status bar + toast</span></div>
+<div style="display:flex;padding:4px 10px"><span style="width:92px;flex:none;color:#ffffff">S6 Inbox</span><span>TreeView + webview</span></div>
+<div style="display:flex;padding:4px 10px;background:#181818"><span style="width:92px;flex:none;color:#ffffff">S7 Update</span><span>Native diff editor + info bar</span></div>
+<div style="display:flex;padding:4px 10px"><span style="width:92px;flex:none;color:#ffffff">S8 Chat</span><span>Language model tools</span></div>
+</div>
+</div>
+
+<div style="font-size:12px;color:#9d9d9d">Every webview sets a strict content security policy, no remote assets, and reads colors only from the variables above. Focus rings use <span style="font-family:ui-monospace,Menlo,Consolas,monospace;color:#cccccc">--vscode-focusBorder</span>.</div>
+</div>
+
+</div>
+</body></html>

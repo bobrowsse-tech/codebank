@@ -1,0 +1,78 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Search and insert</title><style>body{margin:0;padding:24px;background:#161616}a{color:#4daafc}div[style*="monospace"] span{white-space:pre}</style></head><body>
+
+<div style="position:relative;width:1120px;height:720px;box-sizing:border-box;background:#1f1f1f;color:#cccccc;font:13px/20px system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;border:1px solid #2b2b2b;border-radius:10px;overflow:hidden">
+
+<div style="width:560px;flex:none;display:flex;flex-direction:column;border-right:1px solid #2b2b2b;box-sizing:border-box">
+<div style="height:35px;flex:none;background:#181818;border-bottom:1px solid #2b2b2b;display:flex;align-items:flex-end">
+<div style="height:35px;padding:0 16px;display:flex;align-items:center;background:#1f1f1f;border-right:1px solid #2b2b2b;box-sizing:border-box;color:#ffffff">OrdersTable.tsx</div>
+</div>
+<div style="padding:16px 0;font:13px/20px ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#d4d4d4;opacity:0.55">
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">1</span><span><span style="color:#569cd6">import</span> { useMemo, useState } <span style="color:#569cd6">from</span> <span style="color:#ce9178">'react'</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">2</span><span><span style="color:#569cd6">import type</span> { Order } <span style="color:#569cd6">from</span> <span style="color:#ce9178">'./types'</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">3</span><span></span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">4</span><span><span style="color:#569cd6">export function</span> <span style="color:#dcdcaa">OrdersTable</span>({ orders }: { orders: Order[] }) {</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">5</span><span>  <span style="color:#569cd6">const</span> [query, setQuery] = <span style="color:#dcdcaa">useState</span>(<span style="color:#ce9178">''</span>);</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">6</span><span>  <span style="color:#6a9955">// TODO: filter by status, date range and text</span></span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">7</span><span>  <span style="color:#569cd6">const</span> rows = orders;<span style="border-left:1.5px solid #cccccc;margin-left:1px"></span></span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">8</span><span>  <span style="color:#569cd6">return</span> (</span></div>
+</div>
+</div>
+
+<div style="flex:1;display:flex;flex-direction:column;min-width:0">
+<div style="height:35px;flex:none;background:#181818;border-bottom:1px solid #2b2b2b;display:flex;align-items:flex-end">
+<div style="height:35px;padding:0 16px;display:flex;align-items:center;gap:8px;background:#1f1f1f;border-right:1px solid #2b2b2b;box-sizing:border-box;color:#ffffff;font-style:italic"><span>filtering v3: preview</span><span style="color:#9d9d9d;font-size:12px;font-style:normal">read-only</span></div>
+</div>
+<div style="height:28px;display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid #2b2b2b;font-size:12px;color:#9d9d9d">
+<span style="color:#ffffff;border-bottom:1px solid #0078d4;padding:3px 0">filterRows.ts</span><span>types.ts</span><span>inRange.ts</span><span style="margin-left:auto">3 files · 142 lines</span>
+</div>
+<div style="padding:12px 0;font:13px/20px ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#d4d4d4">
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">1</span><span><span style="color:#569cd6">import</span> { inRange } <span style="color:#569cd6">from</span> <span style="color:#ce9178">'./inRange'</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">2</span><span><span style="color:#569cd6">import type</span> { Filters } <span style="color:#569cd6">from</span> <span style="color:#ce9178">'./types'</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">3</span><span></span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">4</span><span><span style="color:#569cd6">export function</span> <span style="color:#dcdcaa">filterRows</span>&lt;T&gt;(rows: T[], f: Filters&lt;T&gt;): T[] {</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">5</span><span>  <span style="color:#569cd6">const</span> q = f.text.trim().toLowerCase();</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">6</span><span>  <span style="color:#569cd6">return</span> rows.<span style="color:#dcdcaa">filter</span>((r) =&gt; {</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">7</span><span>    <span style="color:#6a9955">// text match across the chosen fields</span></span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:16px;color:#6e7681;flex:none">8</span><span>    <span style="color:#569cd6">if</span> (q &amp;&amp; !f.fields.<span style="color:#dcdcaa">some</span>((k) =&gt; <span style="color:#dcdcaa">String</span>(r[k]).toLowerCase().<span style="color:#dcdcaa">includes</span>(q))) <span style="color:#569cd6">return false</span>;</span></div>
+</div>
+</div>
+
+<div style="position:absolute;left:230px;top:8px;width:660px;background:#222222;border:1px solid #3c3c3c;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.55);overflow:hidden">
+<div style="height:26px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#9d9d9d">Codebank: Search</div>
+<div style="padding:0 8px 8px 8px"><div style="height:28px;box-sizing:border-box;background:#313131;border:1px solid #0078d4;border-radius:2px;display:flex;align-items:center;padding:0 8px;color:#ffffff">filtering<span style="border-left:1.5px solid #cccccc;height:16px;margin-left:1px"></span></div></div>
+
+<div style="height:48px;box-sizing:border-box;padding:4px 12px;background:#04395e;display:flex;flex-direction:column;justify-content:center">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="color:#ffffff;font-weight:600">filtering</span><span style="margin-left:auto;font-size:12px;color:#c5d8ea">v3 · 4 uses · 2 days ago</span></div>
+<div style="font-size:12px;color:#c5d8ea">Filters rows by text, ranges and enums; debounced. No dependencies.</div>
+</div>
+<div style="height:48px;box-sizing:border-box;padding:4px 12px;display:flex;flex-direction:column;justify-content:center">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="color:#ffffff">use-debounced-value</span><span style="margin-left:auto;font-size:12px;color:#9d9d9d">v1 · 9 uses · today</span></div>
+<div style="font-size:12px;color:#9d9d9d">Returns a value that updates after a delay.</div>
+</div>
+<div style="height:48px;box-sizing:border-box;padding:4px 12px;display:flex;flex-direction:column;justify-content:center">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="color:#ffffff">url-state</span><span style="margin-left:auto;font-size:12px;color:#9d9d9d">v2 · 1 use · 3 weeks ago</span></div>
+<div style="font-size:12px;color:#9d9d9d">Keeps filter state in the URL without a router dependency.</div>
+</div>
+<div style="height:48px;box-sizing:border-box;padding:4px 12px;display:flex;flex-direction:column;justify-content:center">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="color:#ffffff">faceted-counts</span><span style="color:#cca700;font-size:12px">stale</span><span style="margin-left:auto;font-size:12px;color:#9d9d9d">v1 · 1 use · 5 months ago</span></div>
+<div style="font-size:12px;color:#9d9d9d">Counts per facet value for a filtered row set. Needs date-fns ^3.</div>
+</div>
+<div style="height:48px;box-sizing:border-box;padding:4px 12px;display:flex;flex-direction:column;justify-content:center">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="color:#ffffff">order-status-badge</span><span style="font-size:12px;color:#9d9d9d">client-owned</span><span style="margin-left:auto;font-size:12px;color:#9d9d9d">v2 · 2 uses · 2 months ago</span></div>
+<div style="font-size:12px;color:#9d9d9d">Maps order states to labels and colors.</div>
+</div>
+<div style="height:24px;display:flex;align-items:center;padding:0 12px;font-size:12px;color:#9d9d9d">3 more matches. Keep typing to narrow.</div>
+
+<div style="border-top:1px solid #3c3c3c;padding:8px 12px;display:flex;flex-direction:column;gap:2px;background:#1c1c1c">
+<div style="font-size:12px;color:#cca700">Not installed in this project: zod ^3.23 (for url-state). filtering needs nothing extra.</div>
+<div style="font-size:12px;color:#9d9d9d">Enter adds to project · Ctrl+Enter inserts at cursor · Tab keeps the preview open · Esc closes</div>
+</div>
+</div>
+
+<div style="position:absolute;left:230px;bottom:16px;width:660px;display:flex;gap:12px;font-size:12px;color:#9d9d9d">
+<div style="flex:1;border:1px dashed #3c3c3c;border-radius:6px;padding:8px 12px;background:#1a1a1a"><span style="color:#6e7681;text-transform:uppercase;letter-spacing:0.04em;font-size:11px">No results</span><br>Nothing in the bank for "pdf export". Try fewer words or <a href="#">scan this machine</a>.</div>
+<div style="flex:1;border:1px dashed #3c3c3c;border-radius:6px;padding:8px 12px;background:#1a1a1a"><span style="color:#6e7681;text-transform:uppercase;letter-spacing:0.04em;font-size:11px">Adapt needed</span><br>Entry uses React 18 hooks; this project has React 17. Insert anyway, then adapt: hook syntax only.</div>
+</div>
+
+</div>
+</body></html>

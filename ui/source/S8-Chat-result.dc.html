@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chat result</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#4daafc}a:hover{color:#79c0ff}
+</style>
+</helmet>
+<div style="width:760px;height:860px;box-sizing:border-box;background:#181818;color:#cccccc;font:13px/20px system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;flex-direction:column;border:1px solid #2b2b2b;border-radius:10px;overflow:hidden">
+
+<div style="height:35px;flex:none;border-bottom:1px solid #2b2b2b;display:flex;align-items:center;padding:0 14px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase">Chat</div>
+
+<div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+<div style="align-self:flex-end;max-width:540px;background:#04395e;border-radius:8px;padding:8px 12px;color:#ffffff">Add filtering to the orders table. <span style="color:#4daafc">#codebank</span> filtering by status and date</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#9d9d9d"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ea043" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Ran codebank_search · "filtering by status and date" · 5 results</div>
+
+<div style="border:1px solid #2b2b2b;border-radius:6px;background:#1f1f1f">
+<div style="padding:8px 12px;display:flex;gap:8px;align-items:baseline;background:#04395e;border-radius:6px 6px 0 0"><span style="color:#ffffff;font-weight:600">filtering</span><span style="font-size:12px;color:#c5d8ea">v3 · 4 uses · score 0.91</span><span style="margin-left:auto;font-size:12px;color:#c5d8ea">best match</span></div>
+<div style="padding:6px 12px;font-size:12px;color:#9d9d9d">Filters rows by text, ranges and enums. 3 files, 142 lines. No dependencies.</div>
+<div style="padding:6px 12px 8px 12px;font-size:12px;color:#9d9d9d;border-top:1px solid #2b2b2b">also: use-debounced-value 0.62 · url-state 0.55 · 2 more</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#9d9d9d"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ea043" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Ran codebank_get · filtering v3 · 4.1 KB, saved about 1,100 tokens of writing</div>
+</div>
+
+<div style="max-width:620px;color:#cccccc">
+I found a solution you already banked, <span style="font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#ffffff">filtering</span> v3, and added it to <span style="font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#ffffff">src/codebank/filtering/</span>. Your table now calls <span style="font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#ffffff">filterRows</span> with a status list and a date range. I adapted the date handling because this project uses date-fns 2.
+</div>
+
+<div style="display:flex;gap:10px;margin-top:4px">
+<div style="flex:1;border:1px dashed #3c3c3c;border-radius:6px;padding:8px 12px;font-size:12px;color:#9d9d9d"><span style="color:#6e7681;text-transform:uppercase;letter-spacing:0.04em;font-size:11px">No hit</span><br>codebank_search found nothing above 0.5. The agent writes the code, then proposes it to your Inbox when done.</div>
+<div style="flex:1;border:1px dashed #3c3c3c;border-radius:6px;padding:8px 12px;font-size:12px;color:#9d9d9d"><span style="color:#cca700;text-transform:uppercase;letter-spacing:0.04em;font-size:11px">Adapt flag</span><br>Result carries "needs adapting: date-fns 3 API". The agent states what it changed in its reply.</div>
+</div>
+
+<div style="border:1px solid #2b2b2b;border-radius:6px;background:#1f1f1f;padding:8px 12px;display:flex;align-items:center;gap:10px">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4daafc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+<span style="font-size:12px">The agent proposed <span style="color:#ffffff">dateRangePreset</span> to your Inbox. Nothing is saved until you accept.</span>
+<span style="margin-left:auto;font-size:12px"><a href="#">Open Inbox</a></span>
+</div>
+
+</div>
+
+<div style="flex:none;margin:0 12px 12px 12px;border:1px solid #3c3c3c;border-radius:6px;background:#313131;padding:8px 12px;color:#9d9d9d;display:flex;justify-content:space-between"><span>Ask about code, or type #codebank to search your bank</span><span style="color:#cccccc">Send</span></div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":760,"height":860}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

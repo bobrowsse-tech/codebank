@@ -1,0 +1,126 @@
+name: Publish
+
+# Cut a GitHub Release (tag vX.Y.Z matching packages/vscode/package.json) to
+# attach the VSIX and publish outward. Marketplace and Open VSX need
+# repository secrets VSCE_PAT and OVSX_PAT. NPM_TOKEN publishes the CLI only
+# when its package name is scoped; the unscoped name "codebank" is taken.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Require the extension package
+        run: |
+          if [ ! -f packages/vscode/package.json ]; then
+            echo "::error::packages/vscode is not in this tree yet. Publish after the extension packages."
+            exit 1
+          fi
+
+      - name: Install, test, and package
+        run: |
+          npm ci
+          npm test
+          npm run package
+
+      - name: Check the release tag matches the extension version
+        if: github.event_name == 'release'
+        run: |
+          version="$(node -p "require('./packages/vscode/package.json').version")"
+          tag="${{ github.event.release.tag_name }}"
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::Release tag $tag must be v$version to match packages/vscode/package.json."
+            exit 1
+          fi
+
+      - name: Collect VSIX files
+        id: vsix
+        run: |
+          mapfile -t files < <(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::npm run package produced no .vsix file."
+            exit 1
+          fi
+          printf '%s\n' "${files[@]}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: "**/*.vsix"
+          if-no-files-found: error
+
+      - name: Attach the VSIX to the GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' -print0 |
+            xargs -0 gh release upload "${{ github.event.release.tag_name }}" --clobber
+
+      - name: Publish to the Visual Studio Marketplace
+        if: github.event_name == 'release'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::error::Add repository secret VSCE_PAT (Marketplace publish scope) before publishing."
+            exit 1
+          fi
+          vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' | head -n 1)"
+          npx --yes @vscode/vsce publish --packagePath "$vsix" -p "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        if: github.event_name == 'release'
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "::error::Add repository secret OVSX_PAT from open-vsx.org before publishing."
+            exit 1
+          fi
+          vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' | head -n 1)"
+          npx --yes ovsx publish "$vsix" -p "$OVSX_PAT"
+
+      - name: Publish the scoped CLI to npm
+        if: github.event_name == 'release'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN is unset. Skipping npm. Set it only after the CLI name is scoped."
+            exit 0
+          fi
+          if [ ! -f packages/cli/package.json ]; then
+            echo "packages/cli/package.json is missing. Skipping npm."
+            exit 0
+          fi
+          node <<'EOF'
+          const pkg = require("./packages/cli/package.json");
+          if (pkg.private) {
+            console.log("CLI package is private. Skipping npm.");
+            process.exit(0);
+          }
+          if (!pkg.name || !pkg.name.startsWith("@")) {
+            console.error(`Refusing to publish "${pkg.name || ""}". The unscoped name codebank is taken; choose a scope first.`);
+            process.exit(1);
+          }
+          EOF
+          npm publish --workspace packages/cli --access public

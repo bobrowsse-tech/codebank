@@ -1,0 +1,56 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Update review</title><style>body{margin:0;padding:24px;background:#161616}a{color:#4daafc}div[style*="monospace"] span{white-space:pre}</style></head><body>
+
+<div style="width:1200px;height:720px;box-sizing:border-box;background:#1f1f1f;color:#cccccc;font:13px/20px system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;flex-direction:column;border:1px solid #2b2b2b;border-radius:10px;overflow:hidden">
+
+<div style="height:35px;flex:none;background:#181818;border-bottom:1px solid #2b2b2b;display:flex;align-items:flex-end">
+<div style="height:35px;padding:0 16px;display:flex;align-items:center;gap:8px;background:#1f1f1f;border-right:1px solid #2b2b2b;border-top:1px solid #0078d4;box-sizing:border-box;color:#ffffff">filterRows.ts: Your copy ↔ Upstream v4</div>
+</div>
+
+<div style="flex:none;background:#04395e;border-bottom:1px solid #2b2b2b;padding:8px 16px;display:flex;align-items:center;gap:12px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4daafc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+<div style="color:#ffffff">filtering updated v3 → v4: empty-string filters are now ignored. Your copy has 2 local changes.</div>
+<div style="margin-left:auto;display:flex;gap:8px">
+<div style="height:26px;padding:0 12px;border-radius:4px;background:#0078d4;color:#fff;display:flex;align-items:center;font-weight:600">Take update</div>
+<div style="height:26px;padding:0 12px;border-radius:4px;border:1px solid #4d6f8e;display:flex;align-items:center">Keep mine</div>
+<div style="height:26px;padding:0 12px;border-radius:4px;border:1px solid #4d6f8e;display:flex;align-items:center">Promote mine as new version</div>
+</div>
+</div>
+
+<div style="flex:none;display:flex;border-bottom:1px solid #2b2b2b;font-size:12px;color:#9d9d9d">
+<div style="flex:1;padding:4px 16px;border-right:1px solid #2b2b2b">Your copy · src/codebank/filtering/filterRows.ts · based on v3</div>
+<div style="flex:1;padding:4px 16px">Upstream v4 · ~/.codebank/entries/filtering</div>
+</div>
+
+<div style="display:flex;flex:none;font:13px/20px ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#d4d4d4">
+<div style="flex:1;border-right:1px solid #2b2b2b;padding:8px 0;min-width:0">
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">3</span><span><span style="color:#569cd6">export function</span> <span style="color:#dcdcaa">filterRows</span>&lt;T&gt;(rows: T[], f: Filters&lt;T&gt;): T[] {</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">4</span><span>  <span style="color:#569cd6">const</span> q = f.text.trim().toLowerCase();</span></div>
+<div style="display:flex;background:#4b1818"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">5</span><span>  <span style="color:#569cd6">return</span> rows.<span style="color:#dcdcaa">filter</span>((r) =&gt; {</span></div>
+<div style="display:flex;background:#4b1818"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">6</span><span>    <span style="color:#569cd6">if</span> (q.length &amp;&amp; !f.fields.<span style="color:#dcdcaa">some</span>(<span style="color:#9cdcfe">matches</span>(r, q))) <span style="color:#569cd6">return false</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">7</span><span>    <span style="color:#569cd6">if</span> (f.range &amp;&amp; !<span style="color:#dcdcaa">inRange</span>(r, f.range)) <span style="color:#569cd6">return false</span>;</span></div>
+<div style="display:flex;background:#4b1818"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">8</span><span>    <span style="color:#6a9955">// local: log skipped rows</span></span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">9</span><span>    <span style="color:#569cd6">return true</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">10</span><span>  });</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">11</span><span>}</span></div>
+</div>
+<div style="flex:1;padding:8px 0;min-width:0">
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">3</span><span><span style="color:#569cd6">export function</span> <span style="color:#dcdcaa">filterRows</span>&lt;T&gt;(rows: T[], f: Filters&lt;T&gt;): T[] {</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">4</span><span>  <span style="color:#569cd6">const</span> q = f.text.trim().toLowerCase();</span></div>
+<div style="display:flex;background:#1e3a24"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">5</span><span>  <span style="color:#569cd6">const</span> active = f.fields.<span style="color:#dcdcaa">filter</span>((k) =&gt; <span style="color:#dcdcaa">Boolean</span>(f.text));</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">6</span><span>  <span style="color:#569cd6">return</span> rows.<span style="color:#dcdcaa">filter</span>((r) =&gt; {</span></div>
+<div style="display:flex;background:#1e3a24"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">7</span><span>    <span style="color:#569cd6">if</span> (q &amp;&amp; active.<span style="color:#dcdcaa">length</span> &amp;&amp; !active.<span style="color:#dcdcaa">some</span>(<span style="color:#9cdcfe">matches</span>(r, q))) <span style="color:#569cd6">return false</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">8</span><span>    <span style="color:#569cd6">if</span> (f.range &amp;&amp; !<span style="color:#dcdcaa">inRange</span>(r, f.range)) <span style="color:#569cd6">return false</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">9</span><span>    <span style="color:#569cd6">return true</span>;</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">10</span><span>  });</span></div>
+<div style="display:flex"><span style="width:44px;text-align:right;padding-right:12px;color:#6e7681;flex:none">11</span><span>}</span></div>
+</div>
+</div>
+
+<div style="flex:1;border-top:1px solid #2b2b2b;padding:14px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-content:start;background:#181818">
+<div style="border:1px solid #2b2b2b;border-radius:6px;padding:10px 12px"><div style="color:#ffffff;font-weight:600">Base</div><div style="font-size:12px;color:#9d9d9d">Three-way merge against v3, the version your copy started from. 3 files compared, 1 changed upstream, 1 changed locally.</div></div>
+<div style="border:1px solid #cca700;border-radius:6px;padding:10px 12px"><div style="color:#ffffff;font-weight:600">Drift note</div><div style="font-size:12px;color:#9d9d9d">v4 was written against date-fns 3. This project has date-fns 2.30, so range filters may need adapting.</div></div>
+<div style="border:1px dashed #f85149;border-radius:6px;padding:10px 12px"><div style="color:#ffffff;font-weight:600">If lines conflict</div><div style="font-size:12px;color:#9d9d9d">Both sides changed lines 5 to 6. The diff stays open; resolve by hand, then choose Take update. Nothing is overwritten before you do.</div></div>
+</div>
+
+</div>
+</body></html>
