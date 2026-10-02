@@ -19,6 +19,9 @@ export function registerRecall(context: vscode.ExtensionContext, homeOf: () => s
   context.subscriptions.push(
     lenses,
     vscode.workspace.onDidChangeWorkspaceFolders(() => repos.clear()),
+    vscode.workspace.onDidCloseTextDocument((document) => {
+      recentPastes.delete(document.uri.toString());
+    }),
     vscode.workspace.onDidChangeTextDocument((event) => {
       const key = event.document.uri.toString();
       const pasted = pastedText(event.contentChanges.map((change) => change.text));

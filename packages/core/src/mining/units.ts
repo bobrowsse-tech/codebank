@@ -9,9 +9,71 @@ export interface UnitSpan {
 const START =
   /(?:^|\n)([ \t]*)((?:export\s+)?)((?:async\s+)?function\s+[A-Za-z_$][\w$]*|(?:async\s+)?const\s+[A-Za-z_$][\w$]*\s*=\s*(?:async\s*)?(?:\([^)\n]*\)|[A-Za-z_$][\w$]*)\s*=>|const\s+[A-Za-z_$][\w$]*\s*=\s*(?:async\s+)?function\b|class\s+[A-Za-z_$][\w$]*)/g;
 
+export function visibleSource(source: string): string {
+  const hidden = lexicalMask(source);
+  let text = "";
+  for (let index = 0; index < source.length; index += 1) {
+    text += hidden[index] ? " " : source[index] === "\n" ? "\n" : source[index];
+  }
+  return text;
+}
+
+function lexicalMask(source: string): Uint8Array {
+  const hidden = new Uint8Array(source.length);
+  let index = 0;
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (char === "/" && next === "/") {
+      while (index < source.length && source[index] !== "\n") {
+        hidden[index] = 1;
+        index += 1;
+      }
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      hidden[index] = 1;
+      hidden[index + 1] = 1;
+      index += 2;
+      while (index < source.length && !(source[index] === "*" && source[index + 1] === "/")) {
+        hidden[index] = 1;
+        index += 1;
+      }
+      if (index < source.length) {
+        hidden[index] = 1;
+        hidden[index + 1] = 1;
+        index += 2;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") {
+      hidden[index] = 1;
+      index += 1;
+      while (index < source.length) {
+        hidden[index] = 1;
+        if (source[index] === "\\") {
+          index += 1;
+          if (index < source.length) hidden[index] = 1;
+          index += 1;
+          continue;
+        }
+        if (source[index] === char) {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+    index += 1;
+  }
+  return hidden;
+}
+
 export function extractUnits(source: string): UnitSpan[] {
+  const visible = visibleSource(source);
   const units: UnitSpan[] = [];
-  for (const match of source.matchAll(START)) {
+  for (const match of visible.matchAll(START)) {
     const at = match.index ?? 0;
     const header = match[0];
     const exported = /\bexport\b/.test(header);

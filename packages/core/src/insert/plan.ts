@@ -88,7 +88,7 @@ export function markerLine(language: Language, slug: string, version: number, ha
 function installCommand(deps: { name: string; range: string }[]): string | undefined {
   const safe = deps.filter((dep) => isPackageDep(dep));
   if (safe.length === 0) return undefined;
-  return `npm install ${safe.map((dep) => `${dep.name}@${dep.range}`).join(" ")}`;
+  return `npm install ${safe.map((dep) => `'${dep.name}@${dep.range}'`).join(" ")}`;
 }
 
 function endMarkerLine(language: Language): string {

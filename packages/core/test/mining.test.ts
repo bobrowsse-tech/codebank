@@ -137,6 +137,9 @@ test("an empty useFilters file suggests the filtering entry and unrelated names 
   );
   const suggestion = suggestRecall(home, { filePath: "src/useFilters.ts", text: "", repoId: "repo", targetOrg: "fixture" });
   assert.equal(suggestion?.slug, "filtering");
+  const commented = suggestRecall(home, { filePath: "src/zzzz.ts", text: "// todo filter rows\n", repoId: "other" });
+  assert.equal(commented?.signal, "comment");
+  assert.equal(commented?.slug, "filtering");
   assert.equal(suggestRecall(home, { filePath: "src/useFilters.ts", text: "", repoId: "repo", enabled: false }), undefined);
   assert.equal(await noteShown(home, "repo", "src/useFilters.ts", "filtering"), true);
   assert.equal(await noteShown(home, "repo", "src/useFilters.ts", "filtering"), false);
@@ -200,6 +203,10 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   const built = extractUnits(arrow);
   assert.equal(built[0]?.name, "buildRows");
   assert.match(built[0]?.content ?? "", /\}\);/);
+  const commented = `/*\n${padded("hiddenRows", 12)}\n*/\n${padded("visibleRows", 12)}`;
+  assert.deepEqual(extractUnits(commented).map((unit) => unit.name), ["visibleRows"]);
+  const templated = "const sample = `\n" + padded("sampleRows", 12) + "\n`;\n" + padded("realRows", 12);
+  assert.deepEqual(extractUnits(templated).map((unit) => unit.name), ["realRows"]);
   const expression = extractUnits(padded("parseRows", 8).replace("export function parseRows", "export const parseRows = function"));
   assert.equal(expression[0]?.name, "parseRows");
 
@@ -288,6 +295,30 @@ test("a root generated directory is not scanned", async () => {
     ],
   });
   assert.equal(repeated.ok, false);
+  const commentedExport = await proposeCandidate(home, {
+    title: "Real export",
+    intent: "Ignores a commented export.",
+    tags: ["files"],
+    files: [{ relPath: "src/real.ts", content: "// export function fake() {}\nexport function real() { return 1; }\n" }],
+  });
+  assert.equal(commentedExport.ok, true);
+  if (commentedExport.ok) assert.equal(commentedExport.candidate.draft.symbols[0], "real");
+});
+
+test("a pending inbox slug is reserved for the next scan", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-slug-"));
+  ensureHome(home);
+  const proposed = await proposeCandidate(home, {
+    title: "filterRows",
+    intent: "Already waiting in the inbox.",
+    tags: ["rows"],
+    files: [{ relPath: "src/other.ts", content: "export function filterRows() { return []; }\n" }],
+  });
+  assert.equal(proposed.ok, true);
+  await mine(home, { roots: ["alpha", "beta"].map(copyRepo) });
+  const slugs = listCandidates(home).map((candidate) => candidate.draft.slug);
+  assert.ok(slugs.includes("filterrows"));
+  assert.ok(slugs.includes("filterrows-2"));
 });
 
 test("recall skips a stale entry", async () => {

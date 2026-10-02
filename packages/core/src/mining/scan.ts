@@ -306,7 +306,7 @@ function emitCandidates(home: string, groups: FoundUnit[][]): Candidate[] {
   const config = loadConfig(home);
   const banked = new Set(listEntries(home).map((entry) => entry.slug));
   const skipped = new Set([...listDismissed(home), ...listCandidates(home).map((candidate) => candidate.id)]);
-  const taken = new Set(banked);
+  const taken = new Set([...banked, ...listCandidates(home).map((candidate) => candidate.draft.slug)]);
   const ranked = groups
     .map((group) => ({ group, score: rank(group) }))
     .filter((item) => item.score > 0)

@@ -34,10 +34,13 @@ export function suggestRecall(
   if (!enabled) return undefined;
   logStage("recall", "in", { filePath: input.filePath });
   const lines = input.text.split("\n");
-  const filename = lines.length < 5 ? filenameSignal(home, input) : undefined;
-  const comment = filename ? undefined : commentSignal(home, input);
-  const paste = filename || comment || !input.pasted ? undefined : pasteSignal(home, { ...input, text: input.pasted });
-  const suggestion = filename ?? comment ?? paste;
+  const signals = [
+    lines.length < 5 ? filenameSignal(home, input) : undefined,
+    commentSignal(home, input),
+    input.pasted ? pasteSignal(home, { ...input, text: input.pasted }) : undefined,
+  ].filter((item): item is RecallSuggestion => item !== undefined);
+  signals.sort((left, right) => right.score - left.score);
+  const suggestion = signals[0];
   if (!suggestion) return undefined;
   if (suggestion.score < threshold) return undefined;
   if (isMuted(home, input.repoId, suggestion.slug)) return undefined;

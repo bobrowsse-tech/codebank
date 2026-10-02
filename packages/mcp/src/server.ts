@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describeRepo, planInsert, proposeCandidate, readEntry, readEntryFiles, searchBank, toCard } from "../../core/src/index.ts";
 import { appendUsage } from "../../core/src/store/usage.ts";
 import { languageFromFile } from "../../core/src/closure/extract.ts";
@@ -137,8 +139,10 @@ async function callTool(home: string, params: Record<string, unknown>): Promise<
 }
 
 function search(home: string, args: Record<string, unknown>): string {
-  const query = String(args.query ?? "");
-  const limit = Math.min(8, Math.max(1, Number(args.limit ?? 3)));
+  if (typeof args.query !== "string") throw new ToolError("query must be a string.");
+  if (args.limit !== undefined && (typeof args.limit !== "number" || !Number.isFinite(args.limit))) throw new ToolError("limit must be a number from 1 to 8.");
+  const query = args.query;
+  const limit = Math.min(8, Math.max(1, typeof args.limit === "number" ? args.limit : 3));
   const org = describeRepo(process.cwd()).org;
   const cards = searchBank(home, query, limit, { language: typeof args.language === "string" ? args.language : undefined, targetOrg: org });
   appendUsage(home, { t: new Date().toISOString(), kind: "search", surface: "mcp", query });
@@ -147,7 +151,9 @@ function search(home: string, args: Record<string, unknown>): string {
 }
 
 function get(home: string, args: Record<string, unknown>): unknown {
-  const slug = String(args.slug ?? "");
+  if (typeof args.slug !== "string" || !args.slug) throw new ToolError("slug must be a string.");
+  if (args.mode !== undefined && args.mode !== "inspect" && args.mode !== "insert-plan") throw new ToolError("mode must be inspect or insert-plan.");
+  const slug = args.slug;
   const entry = readEntry(home, slug);
   if (!entry) return { content: [{ type: "text", text: `No entry named ${slug}.` }], isError: true };
   const files = readEntryFiles(home, slug);
@@ -156,6 +162,7 @@ function get(home: string, args: Record<string, unknown>): unknown {
     files,
     mode: "add",
     targetLanguage: languageFromFile(entry.entryFile),
+    targetPackageJson: nearestPackageJson(process.cwd()),
     targetOrg: describeRepo(process.cwd()).org,
   });
   appendUsage(home, { t: new Date().toISOString(), kind: "shown", surface: "mcp", slug });
@@ -196,6 +203,18 @@ function proposalArgs(args: Record<string, unknown>): { title: string; intent: s
       })
     : undefined;
   return { title: args.title, intent: args.intent, whenNot: typeof args.whenNot === "string" ? args.whenNot : undefined, tags: args.tags, files, deps };
+}
+
+function nearestPackageJson(start: string): string | undefined {
+  let dir = path.resolve(start);
+  for (let depth = 0; depth < 8; depth += 1) {
+    const candidate = path.join(dir, "package.json");
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+  return undefined;
 }
 
 function cardLine(card: { slug: string; title: string; intent: string; deps: string[]; version: number }): string {

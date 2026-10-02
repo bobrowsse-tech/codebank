@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { languageFromFile } from "../closure/extract";
+import { visibleSource } from "../mining/units";
 import { contentHash } from "../closure/hash";
 import { logStage } from "../log";
 import { tuning } from "../tuning";
@@ -105,9 +106,10 @@ export async function acceptCandidate(home: string, id: string): Promise<SaveOut
 }
 
 function primaryExport(content: string): string | undefined {
-  const declared = content.match(/export\s+(?:async\s+)?(?:function|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][\w$]*)/);
+  const visible = visibleSource(content);
+  const declared = visible.match(/export\s+(?:async\s+)?(?:function|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][\w$]*)/);
   if (declared) return declared[1];
-  const named = content.match(/export\s*\{([^}]+)\}/);
+  const named = visible.match(/export\s*\{([^}]+)\}/);
   const first = named?.[1].split(",")[0]?.trim().split(/\s+as\s+/).pop()?.trim();
   if (first && /^[A-Za-z_$][\w$]*$/.test(first)) return first;
   return undefined;

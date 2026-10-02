@@ -70,6 +70,9 @@ test("the mcp server speaks raw json lines", async () => {
     ["codebank_search", "codebank_get", "codebank_propose"],
   );
 
+  send({ jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "codebank_search", arguments: { query: { bad: true } } } });
+  assert.equal(JSON.parse(await next()).error.code, -32602);
+
   send({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "codebank_search", arguments: { query: "filtering" } } });
   const search = JSON.parse(await next()) as { result: { content: Array<{ text: string }> } };
   assert.match(search.result.content[0].text, /No bank matches/);
@@ -109,6 +112,9 @@ test("the mcp server speaks raw json lines", async () => {
 
   child.stdin.write("null\n");
   assert.equal(JSON.parse(await next()).error.code, -32600);
+
+  send({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "codebank_get", arguments: { slug: { bad: true } } } });
+  assert.equal(JSON.parse(await next()).error.code, -32602);
 
   send({ jsonrpc: "2.0", id: 6, method: "tools/missing" });
   assert.equal(JSON.parse(await next()).error.code, -32601);
