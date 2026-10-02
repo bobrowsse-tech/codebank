@@ -16,9 +16,14 @@ export function scanFolders(homeOf: () => string, onDone: () => void): void {
   const render = (state: string, detail: string) => {
     panel.webview.html = scanHtml(panel.webview, nonce, state, detail);
   };
-  render("scanning", roots.length === 0 ? "Add folders in codebank.scan.roots." : `Looking through ${roots.length} roots.`);
-  if (roots.length === 0) return;
-  worker = new Worker(path.join(__dirname, "mine-worker.js"), { workerData: { home: homeOf(), roots } });
+  if (roots.length === 0) {
+    render("setup", "Add folders in codebank.scan.roots.");
+    return;
+  }
+  render("scanning", `Looking through ${roots.length} roots.`);
+  const inspected = vscode.workspace.getConfiguration("codebank").inspect<string[]>("scan.ignore");
+  const ignore = inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
+  worker = new Worker(path.join(__dirname, "mine-worker.js"), { workerData: { home: homeOf(), roots, ignore } });
   worker.on("message", (message: { type: string; progress?: MineProgress; result?: MineResult; message?: string }) => {
     if (message.type === "progress" && message.progress) {
       const progress = message.progress;
@@ -63,7 +68,7 @@ function scanHtml(webview: vscode.Webview, nonce: string, state: string, detail:
 <main>
   <h1>Scan for code you already wrote</h1>
   <p>${escapeHtml(state)}</p>
-  <progress ${state === "scanning" ? "" : 'value="1"'} max="1"></progress>
+  ${state === "scanning" ? '<progress max="1"></progress>' : state === "setup" ? "" : '<progress value="1" max="1"></progress>'}
   <p>${escapeHtml(detail)}</p>
   ${state === "scanning" ? '<button id="cancel" type="button">Cancel</button>' : ""}
 </main>

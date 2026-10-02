@@ -10,14 +10,17 @@ import {
   ensureHome,
   listCandidates,
   listEntries,
+  loadConfig,
   mine,
   noteDismissed,
   noteShown,
   proposeCandidate,
   readUsage,
+  saveConfig,
   saveEntry,
   suggestRecall,
 } from "../src/index";
+import { extractUnits } from "../src/mining/units";
 
 test("mining finds the planted clone and no false cluster", async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-mine-"));
@@ -62,6 +65,10 @@ test("an agent proposal stays in the inbox until it is accepted", async () => {
   assert.equal(accepted.ok, true);
   assert.equal(listCandidates(home).some((item) => item.id === proposed.candidate.id), false);
   assert.equal(listEntries(home)[0]?.slug, "format-currency");
+  const victim = path.join(home, "victim.json");
+  fs.writeFileSync(victim, "{}");
+  assert.equal(dismissCandidate(home, "../../victim"), false);
+  assert.equal(fs.existsSync(victim), true);
 });
 
 test("dismiss keeps a cluster out of the next scan", async () => {
@@ -103,6 +110,7 @@ test("an empty useFilters file suggests the filtering entry and unrelated names 
   );
   const suggestion = suggestRecall(home, { filePath: "src/useFilters.ts", text: "", repoId: "repo", targetOrg: "fixture" });
   assert.equal(suggestion?.slug, "filtering");
+  assert.equal(suggestRecall(home, { filePath: "src/useFilters.ts", text: "", repoId: "repo", enabled: false }), undefined);
   assert.equal(noteShown(home, "repo", "src/useFilters.ts", "filtering"), true);
   assert.equal(noteShown(home, "repo", "src/useFilters.ts", "filtering"), false);
   noteDismissed(home, "repo", "filtering", "src/useFilters.ts");
@@ -121,6 +129,58 @@ test("an empty useFilters file suggests the filtering entry and unrelated names 
     assert.equal(unrelated, undefined);
   }
 });
+
+test("a regex brace does not truncate a unit, and ignored paths are not scanned", async () => {
+  const source = [
+    "export function keepPattern(rows: string[]) {",
+    "  const closed = /}/;",
+    "  const opened = /{/;",
+    "  const ratio = rows.length / 2;",
+    "  const extra = rows.length + 1;",
+    "  const more = rows.length + 2;",
+    "  return rows.filter((row) => closed.test(row) && opened.test(row) && ratio > 0 && extra > more);",
+    "}",
+  ].join("\n");
+  const units = extractUnits(source);
+  assert.equal(units.length, 1);
+  assert.match(units[0].content, /return rows/);
+
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-ignore-"));
+  ensureHome(home);
+  const config = loadConfig(home);
+  config.scan.ignore = [...config.scan.ignore, "skipme"];
+  saveConfig(home, config);
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-ignore-repo-"));
+  fs.mkdirSync(path.join(repo, "src"));
+  fs.mkdirSync(path.join(repo, "skipme"));
+  fs.writeFileSync(path.join(repo, "src", "keep.jsx"), padded("keepRows", 20));
+  fs.writeFileSync(path.join(repo, "src", "keep.test.jsx"), "test('keep', () => {});\n");
+  fs.writeFileSync(path.join(repo, "skipme", "hide.ts"), padded("hideRows", 20));
+  execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+  execFileSync("git", ["add", "-A"], { cwd: repo, stdio: "ignore" });
+  const result = await mine(home, { roots: [repo] });
+  assert.equal(result.files, 1);
+  assert.equal(listCandidates(home).some((item) => item.draft.symbols[0] === "keepRows"), true);
+
+  const controller = new AbortController();
+  const cancelledHome = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-cancel-"));
+  ensureHome(cancelledHome);
+  const cancelled = await mine(cancelledHome, {
+    roots: [repo],
+    signal: controller.signal,
+    onProgress: () => controller.abort(),
+  });
+  assert.equal(cancelled.cancelled, true);
+  assert.equal(listCandidates(cancelledHome).length, 0);
+});
+
+function padded(name: string, lines: number): string {
+  const body = [`export function ${name}(rows: string[]) {`];
+  while (body.length < lines - 1) body.push(`  const v${body.length} = rows.length + ${body.length};`);
+  body.push("  return rows;");
+  body.push("}");
+  return body.join("\n");
+}
 
 function copyRepo(name: string): string {
   const from = path.join(process.cwd(), "fixtures/repos", name);

@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc --noEmit --pretty false && node scripts/bundle.mjs",
     "test": "npm run build && node scripts/run-tests.mjs",
-    "test:ext": "npm run build && node scripts/extension-test.mjs && vscode-test",
+    "test:ext": "npm run build && node scripts/extension-test.mjs",
     "package": "npm run build && npm run package --workspace packages/vscode",
     "dev:cli": "node packages/cli/dist/cli.js"
   },

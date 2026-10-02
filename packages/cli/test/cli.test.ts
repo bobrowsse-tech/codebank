@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { listCandidates } from "../../core/src/index.ts";
 import { installSkill } from "../src/skill.ts";
 import { run } from "../src/cli.ts";
 
@@ -16,6 +17,25 @@ test("list, search, and a missing get use the bank at CODEBANK_HOME", async () =
     assert.equal(await run(["get", "missing"]), 2);
     assert.equal(await run(["doctor"]), 0);
   } finally {
+    if (previous === undefined) delete process.env.CODEBANK_HOME;
+    else process.env.CODEBANK_HOME = previous;
+  }
+});
+
+test("propose keeps every file named after --files", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-propose-home-"));
+  const dir = fs.mkdtempSync(path.join(process.cwd(), "codebank-propose-"));
+  const previous = process.env.CODEBANK_HOME;
+  process.env.CODEBANK_HOME = home;
+  try {
+    const first = path.join(dir, "a.ts");
+    const second = path.join(dir, "b.ts");
+    fs.writeFileSync(first, "export const first = 1;\n");
+    fs.writeFileSync(second, "export const second = 2;\n");
+    assert.equal(await run(["propose", "--title", "Two files", "--intent", "Keeps both.", "--tags", "files", "--files", first, second]), 0);
+    assert.equal(listCandidates(home)[0]?.files.length, 2);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
     if (previous === undefined) delete process.env.CODEBANK_HOME;
     else process.env.CODEBANK_HOME = previous;
   }

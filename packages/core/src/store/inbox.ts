@@ -24,22 +24,31 @@ export function listCandidates(home: string): Candidate[] {
   return candidates.sort((left, right) => right.score - left.score);
 }
 
+const candidateId = /^[a-f0-9]{16}$/;
+
+function candidatePath(home: string, id: string): string | undefined {
+  if (!candidateId.test(id)) return undefined;
+  return path.join(bankPaths(home).inbox, `${id}.json`);
+}
+
 export function readCandidate(home: string, id: string): Candidate | undefined {
-  const file = path.join(bankPaths(home).inbox, `${id}.json`);
-  if (!fs.existsSync(file)) return undefined;
+  const file = candidatePath(home, id);
+  if (!file || !fs.existsSync(file)) return undefined;
   return readJson<Candidate>(file);
 }
 
 export function writeCandidate(home: string, candidate: Candidate): void {
   const problems = problemsForCandidate(candidate);
   if (problems.length > 0) throw new Error(problems.join(" "));
-  atomicWriteJson(path.join(bankPaths(home).inbox, `${candidate.id}.json`), candidate);
+  const file = candidatePath(home, candidate.id);
+  if (!file) throw new Error("A candidate id must be 16 lowercase hex characters.");
+  atomicWriteJson(file, candidate);
   logStage("inbox", "out", { id: candidate.id, proposedBy: candidate.proposedBy });
 }
 
 export function removeCandidate(home: string, id: string): void {
-  const file = path.join(bankPaths(home).inbox, `${id}.json`);
-  if (fs.existsSync(file)) fs.unlinkSync(file);
+  const file = candidatePath(home, id);
+  if (file && fs.existsSync(file)) fs.unlinkSync(file);
 }
 
 export function listDismissed(home: string): string[] {

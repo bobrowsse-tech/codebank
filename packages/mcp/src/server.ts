@@ -164,9 +164,20 @@ function propose(home: string, args: Record<string, unknown>): unknown {
     whenNot: typeof args.whenNot === "string" ? args.whenNot : undefined,
     tags,
     files,
+    deps: proposalDeps(args.deps),
   });
   if (!outcome.ok) return { content: [{ type: "text", text: outcome.reason }], isError: true };
   return { content: [{ type: "text", text: `Proposed ${outcome.candidate.id} to the inbox. A person has to accept it.` }] };
+}
+
+function proposalDeps(value: unknown): { name: string; range: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const dep = item as { name?: unknown; range?: unknown };
+    if (typeof dep.name !== "string" || typeof dep.range !== "string") return [];
+    return [{ name: dep.name, range: dep.range }];
+  });
 }
 
 function cardLine(card: { slug: string; title: string; intent: string; deps: string[]; version: number }): string {

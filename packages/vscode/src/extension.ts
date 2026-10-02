@@ -76,11 +76,15 @@ export function activate(context: vscode.ExtensionContext): void {
       dismissCandidate(bankHome(), item.slug);
       refreshInbox();
     }),
-    ...registerTools(bankHome),
+    ...registerTools(bankHome, refreshInbox),
   );
   registerRecall(context, bankHome);
 
   refreshStatus();
+  if (!context.globalState.get<boolean>("codebank.firstScan")) {
+    void context.globalState.update("codebank.firstScan", true);
+    setTimeout(() => scanFolders(bankHome, refreshInbox), 0);
+  }
   status.command = "codebank.search";
   status.tooltip = "Search the bank";
   status.show();

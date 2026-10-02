@@ -19,9 +19,10 @@ interface ProposeInput {
   whenNot?: string;
   tags?: string[];
   files?: { relPath: string; content: string }[];
+  deps?: { name: string; range: string }[];
 }
 
-export function registerTools(homeOf: () => string): vscode.Disposable[] {
+export function registerTools(homeOf: () => string, onProposed?: () => void): vscode.Disposable[] {
   return [
     vscode.lm.registerTool("codebank_search", {
       invoke: async (options) => {
@@ -79,7 +80,9 @@ export function registerTools(homeOf: () => string): vscode.Disposable[] {
           whenNot: input.whenNot,
           tags: input.tags ?? [],
           files: input.files ?? [],
+          deps: input.deps ?? [],
         });
+        if (outcome.ok) onProposed?.();
         const text = outcome.ok
           ? `Proposed ${outcome.candidate.id} to the inbox. A person has to accept it.`
           : outcome.reason;

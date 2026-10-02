@@ -85,6 +85,7 @@ test("the mcp server speaks raw json lines", async () => {
         intent: "Formats cents.",
         tags: ["currency"],
         files: [{ relPath: "src/format.ts", content: "export const amount = 1;\n" }],
+        deps: [{ name: "lodash", range: "^4.17.21" }],
       },
     },
   });
@@ -93,6 +94,7 @@ test("the mcp server speaks raw json lines", async () => {
   assert.equal(listEntries(home).length, 0);
   assert.equal(listCandidates(home).length, 1);
   assert.equal(listCandidates(home)[0]?.proposedBy, "agent");
+  assert.deepEqual(listCandidates(home)[0]?.draft.deps, [{ name: "lodash", range: "^4.17.21" }]);
 
   send({ jsonrpc: "2.0", id: 6, method: "tools/missing" });
   assert.equal(JSON.parse(await next()).error.code, -32601);

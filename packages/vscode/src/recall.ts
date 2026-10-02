@@ -9,11 +9,16 @@ export function registerRecall(context: vscode.ExtensionContext, homeOf: () => s
       provideCodeLenses(document) {
         const folder = vscode.workspace.getWorkspaceFolder(document.uri);
         const repo = folder ? describeRepo(folder.uri.fsPath) : undefined;
+        const recall = vscode.workspace.getConfiguration("codebank");
+        const enabled = recall.inspect<boolean>("recall.enabled");
+        const threshold = recall.inspect<number>("recall.threshold");
         const suggestion = suggestRecall(homeOf(), {
           filePath: document.uri.fsPath,
           text: document.getText(),
           repoId: repo?.repoId ?? "workspace",
           targetOrg: repo?.org,
+          enabled: enabled?.workspaceFolderValue ?? enabled?.workspaceValue ?? enabled?.globalValue,
+          threshold: threshold?.workspaceFolderValue ?? threshold?.workspaceValue ?? threshold?.globalValue,
         });
         if (!suggestion) return [];
         noteShown(homeOf(), repo?.repoId ?? "workspace", document.uri.fsPath, suggestion.slug);

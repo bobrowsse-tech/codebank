@@ -57,20 +57,20 @@ interface FoundUnit {
 
 export async function mine(
   home: string,
-  options: { roots: string[]; signal?: AbortSignal; onProgress?: (progress: MineProgress) => void },
+  options: { roots: string[]; signal?: AbortSignal; ignore?: string[]; onProgress?: (progress: MineProgress) => void },
 ): Promise<MineResult> {
   const started = performance.now();
   logStage("mining", "in", { roots: options.roots.length });
   const config = ensureHome(home);
-  const repos = findRepos(options.roots);
+  const ignore = options.ignore ?? config.scan.ignore;
+  const repos = findRepos(options.roots, ignore);
   const units: FoundUnit[] = [];
   let files = 0;
   for (let index = 0; index < repos.length; index += 1) {
-    if (options.signal?.aborted) {
-      return finish(home, [], files, repos.length, 0, started, true);
-    }
+    if (options.signal?.aborted) return finish(home, [], files, repos.length, 0, started, true);
     const repo = repos[index];
-    files += collectRepo(repo, units, config.scan.maxFileKB);
+    files += await collectRepo(repo, units, config.scan.maxFileKB, ignore, options.signal);
+    if (options.signal?.aborted) return finish(home, [], files, repos.length, 0, started, true);
     await new Promise((resolve) => setImmediate(resolve));
     options.onProgress?.({
       repo: path.basename(repo),
@@ -80,7 +80,9 @@ export async function mine(
       clusters: 0,
     });
   }
-  const clusters = clusterUnits(units);
+  if (options.signal?.aborted) return finish(home, [], files, repos.length, 0, started, true);
+  const clusters = clusterUnits(units, options.signal);
+  if (!clusters || options.signal?.aborted) return finish(home, [], files, repos.length, 0, started, true);
   const admitted = clusters.filter(admit);
   const candidates = emitCandidates(home, admitted).slice(0, 50);
   for (const candidate of candidates) writeCandidate(home, candidate);
@@ -122,13 +124,13 @@ function finish(
   };
 }
 
-function findRepos(roots: string[]): string[] {
+function findRepos(roots: string[], ignore: string[]): string[] {
   const found = new Set<string>();
-  for (const root of roots) walk(path.resolve(root), 0, found);
+  for (const root of roots) walk(path.resolve(root), 0, found, ignore);
   return [...found];
 }
 
-function walk(dir: string, depth: number, found: Set<string>): void {
+function walk(dir: string, depth: number, found: Set<string>, ignore: string[]): void {
   if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return;
   if (fs.existsSync(path.join(dir, ".git"))) {
     found.add(dir);
@@ -136,19 +138,23 @@ function walk(dir: string, depth: number, found: Set<string>): void {
   }
   if (depth >= 4) return;
   for (const name of fs.readdirSync(dir)) {
-    if (name === "node_modules" || name === "dist" || name === "build" || name === ".next" || name === ".git") continue;
+    if (ignore.includes(name) || name === ".git") continue;
     const full = path.join(dir, name);
-    if (fs.statSync(full).isDirectory()) walk(full, depth + 1, found);
+    if (fs.statSync(full).isDirectory()) walk(full, depth + 1, found, ignore);
   }
 }
 
-function collectRepo(repoRoot: string, units: FoundUnit[], maxFileKB: number): number {
+async function collectRepo(repoRoot: string, units: FoundUnit[], maxFileKB: number, ignore: string[], signal?: AbortSignal): Promise<number> {
   const info = describeRepo(repoRoot);
   const listed = gitFiles(repoRoot);
   let count = 0;
   const names = new Set(listed);
   for (const rel of listed) {
-    if (!wanted(rel)) continue;
+    if (count % 250 === 0) {
+      if (signal?.aborted) return count;
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    if (!wanted(rel, ignore)) continue;
     const abs = path.join(repoRoot, rel);
     if (!fs.existsSync(abs)) continue;
     const stat = fs.statSync(abs);
@@ -195,8 +201,9 @@ function gitFiles(repoRoot: string): string[] {
   }
 }
 
-function wanted(rel: string): boolean {
+function wanted(rel: string, ignore: string[]): boolean {
   if (!/\.(tsx|ts|jsx|js)$/.test(rel)) return false;
+  if (rel.split(/[/\\]/).some((part) => ignore.includes(part))) return false;
   if (rel.endsWith(".d.ts") || rel.endsWith(".min.js")) return false;
   if (/\.(test|spec)\.(tsx|ts|jsx|js)$/.test(rel) || rel.includes("__tests__") || rel.includes("/generated/")) return false;
   return true;
@@ -206,10 +213,10 @@ function siblingTest(rel: string, names: Set<string>): boolean {
   const dir = path.posix.dirname(rel);
   const base = path.posix.basename(rel).replace(/\.(tsx|ts|jsx|js)$/, "");
   const prefix = dir === "." ? "" : `${dir}/`;
-  return [".test.ts", ".test.tsx", ".test.js", ".spec.ts", ".spec.tsx", ".spec.js"].some((ext) => names.has(`${prefix}${base}${ext}`));
+  return [".test.ts", ".test.tsx", ".test.js", ".test.jsx", ".spec.ts", ".spec.tsx", ".spec.js", ".spec.jsx"].some((ext) => names.has(`${prefix}${base}${ext}`));
 }
 
-function clusterUnits(units: FoundUnit[]): FoundUnit[][] {
+function clusterUnits(units: FoundUnit[], signal?: AbortSignal): FoundUnit[][] | undefined {
   const parent = units.map((_, index) => index);
   const find = (index: number): number => {
     let cursor = index;
@@ -248,6 +255,7 @@ function clusterUnits(units: FoundUnit[]): FoundUnit[][] {
   });
   const seen = new Set<string>();
   for (const bucket of buckets.values()) {
+    if (signal?.aborted) return undefined;
     if (bucket.length < 2 || bucket.length > 32) continue;
     for (let left = 0; left < bucket.length; left += 1) {
       for (let right = left + 1; right < bucket.length; right += 1) {

@@ -1,7 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { mine } from "../../core/src/mining/scan.ts";
 
-const data = workerData as { home: string; roots: string[] };
+const data = workerData as { home: string; roots: string[]; ignore?: string[] };
 const controller = new AbortController();
 parentPort?.on("message", (message: { type?: string }) => {
   if (message?.type === "cancel") controller.abort();
@@ -9,6 +9,7 @@ parentPort?.on("message", (message: { type?: string }) => {
 
 mine(data.home, {
   roots: data.roots,
+  ignore: data.ignore,
   signal: controller.signal,
   onProgress: (progress) => parentPort?.postMessage({ type: "progress", progress }),
 })

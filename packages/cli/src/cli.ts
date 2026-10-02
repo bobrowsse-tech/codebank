@@ -282,7 +282,7 @@ async function inboxCommand(argv: string[]): Promise<number> {
 }
 
 function proposeCommand(argv: string[]): number {
-  const { values } = parseArgs({
+  const { values, positionals } = parseArgs({
     args: argv,
     options: {
       title: { type: "string" },
@@ -293,11 +293,12 @@ function proposeCommand(argv: string[]): number {
     },
     allowPositionals: true,
   });
-  if (!values.title || !values.intent || !values.files?.length) {
+  const listed = [...(values.files ?? []), ...positionals];
+  if (!values.title || !values.intent || listed.length === 0) {
     console.error("Usage: codebank propose --title <title> --intent <intent> --files a.ts b.ts");
     return 1;
   }
-  const files = values.files.map((file) => {
+  const files = listed.map((file) => {
     const abs = path.resolve(file);
     return { relPath: path.relative(process.cwd(), abs).split(path.sep).join("/"), content: fs.readFileSync(abs, "utf8") };
   });
