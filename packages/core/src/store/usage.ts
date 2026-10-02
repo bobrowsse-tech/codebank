@@ -3,7 +3,12 @@ import path from "node:path";
 import { logStage } from "../log";
 import type { UsageEvent } from "../model/types";
 import { atomicWrite } from "./atomic";
+import { withLock } from "./lock";
 import { bankPaths } from "./paths";
+
+export async function appendUsageLocked(home: string, event: UsageEvent): Promise<void> {
+  await withLock(bankPaths(home).lock, () => appendUsage(home, event));
+}
 
 export function appendUsage(home: string, event: UsageEvent): void {
   const file = bankPaths(home).usage;

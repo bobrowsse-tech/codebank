@@ -7,7 +7,7 @@ export { withLock } from "./store/lock";
 export { ensureHome, loadConfig, saveConfig } from "./store/config";
 export { listEntries, readEntry, readEntryFiles, recordUse, retireEntry, saveEntry, toCard } from "./store/entries";
 export type { SaveDraft, SaveOutcome } from "./store/entries";
-export { appendUsage, purgeUsage, readUsage } from "./store/usage";
+export { appendUsage, appendUsageLocked, purgeUsage, readUsage } from "./store/usage";
 export { heuristicClosure, languageFromFile } from "./closure/extract";
 export type { ClosureResult } from "./closure/extract";
 export { describeRepo, originFor } from "./git/repo";

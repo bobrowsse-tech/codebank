@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  SchemaError,
   acceptCandidate,
   dismissCandidate,
   ensureHome,
@@ -17,6 +18,7 @@ import {
   noteShown,
   pastedText,
   proposeCandidate,
+  readCandidate,
   readUsage,
   saveConfig,
   saveEntry,
@@ -203,6 +205,19 @@ test("a regex brace does not truncate a unit, and ignored paths are not scanned"
   const built = extractUnits(arrow);
   assert.equal(built[0]?.name, "buildRows");
   assert.match(built[0]?.content ?? "", /\}\);/);
+  const jsx = [
+    "export const Card = () => <section>",
+    "  {value}",
+    "  <span>one</span>",
+    "  <span>two</span>",
+    "  <span>three</span>",
+    "  <span>four</span>",
+    "  <span>five</span>",
+    "</section>;",
+  ].join("\n");
+  const card = extractUnits(jsx);
+  assert.equal(card[0]?.name, "Card");
+  assert.match(card[0]?.content ?? "", /<\/section>;/);
   const commented = `/*\n${padded("hiddenRows", 12)}\n*/\n${padded("visibleRows", 12)}`;
   assert.deepEqual(extractUnits(commented).map((unit) => unit.name), ["visibleRows"]);
   const templated = "const sample = `\n" + padded("sampleRows", 12) + "\n`;\n" + padded("realRows", 12);
@@ -295,6 +310,16 @@ test("a root generated directory is not scanned", async () => {
     ],
   });
   assert.equal(repeated.ok, false);
+  const dotted = await proposeCandidate(home, {
+    title: "Dot path",
+    intent: "A dot is not a file.",
+    tags: ["files"],
+    files: [{ relPath: ".", content: "export function dot() { return 1; }\n" }],
+  });
+  assert.equal(dotted.ok, false);
+  fs.writeFileSync(path.join(home, "inbox", "aaaaaaaaaaaaaaaa.json"), JSON.stringify({ schema: 2 }));
+  assert.throws(() => readCandidate(home, "aaaaaaaaaaaaaaaa"), SchemaError);
+  assert.throws(() => listCandidates(home), SchemaError);
   const commentedExport = await proposeCandidate(home, {
     title: "Real export",
     intent: "Ignores a commented export.",

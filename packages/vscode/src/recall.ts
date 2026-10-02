@@ -54,7 +54,7 @@ export function registerRecall(context: vscode.ExtensionContext, homeOf: () => s
           new vscode.CodeLens(range, {
             title: `${suggestion.title} v${suggestion.version}, used ${suggestion.uses} times`,
             command: "codebank.insert",
-            arguments: [suggestion.slug, repoId],
+            arguments: [suggestion.slug, repoId, folder?.uri.fsPath],
           }),
           new vscode.CodeLens(range, { title: "Preview", command: "codebank.preview", arguments: [suggestion.slug] }),
           new vscode.CodeLens(range, { title: "Not now", command: "codebank.recallDismiss", arguments: [repoId, suggestion.slug, filePath] }),

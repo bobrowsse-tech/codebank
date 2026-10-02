@@ -80,7 +80,7 @@ export function extractUnits(source: string): UnitSpan[] {
     if (/\bconst\b/.test(header) && !exported) continue;
     const name = header.match(/(?:function|const|class)\s+([A-Za-z_$][\w$]*)/)?.[1];
     if (!name) continue;
-    const located = statementEnd(source, at + header.length);
+    const located = statementEnd(source, at + header.length, header.includes("=>"));
     if (!located || ("expr" in located && !header.includes("=>"))) continue;
     const end = "body" in located ? matchingBrace(source, located.body) : located.expr;
     if (end < 0) continue;
@@ -99,6 +99,7 @@ function regexStart(source: string, index: number): boolean {
   while (cursor >= 0 && /\s/.test(source[cursor])) cursor -= 1;
   if (cursor < 0) return true;
   const previous = source[cursor];
+  if (previous === "<") return false;
   if ("([{:;,=~!&|?+-*%<>^".includes(previous)) return true;
   const word = source.slice(Math.max(0, cursor - 12), cursor + 1).match(/[A-Za-z_$][\w$]*$/)?.[0];
   return word === "return" || word === "typeof" || word === "case" || word === "throw" || word === "else" || word === "void" || word === "do" || word === "in" || word === "of" || word === "instanceof" || word === "delete" || word === "await" || word === "yield" || word === "new";
@@ -132,7 +133,7 @@ function lineNumber(source: string, index: number): number {
   return line;
 }
 
-function statementEnd(source: string, from: number): { body: number } | { expr: number } | undefined {
+function statementEnd(source: string, from: number, arrow: boolean): { body: number } | { expr: number } | undefined {
   let paren = 0;
   let bracket = 0;
   let angle = 0;
@@ -148,10 +149,10 @@ function statementEnd(source: string, from: number): { body: number } | { expr: 
     else if (char === ")" && paren > 0) paren -= 1;
     else if (char === "[") bracket += 1;
     else if (char === "]" && bracket > 0) bracket -= 1;
-    else if (char === "<" && paren === 0 && bracket === 0 && brace === 0) angle += 1;
-    else if (char === ">" && angle > 0 && paren === 0 && bracket === 0 && brace === 0 && source[index - 1] !== "=") angle -= 1;
+    else if (char === "<" && !arrow && paren === 0 && bracket === 0 && brace === 0) angle += 1;
+    else if (char === ">" && !arrow && angle > 0 && paren === 0 && bracket === 0 && brace === 0 && source[index - 1] !== "=") angle -= 1;
     else if (char === "{") {
-      if (paren === 0 && bracket === 0 && angle === 0 && brace === 0 && isBodyBrace(source, index)) return { body: index };
+      if (paren === 0 && bracket === 0 && angle === 0 && brace === 0 && isBodyBrace(source, index, arrow)) return { body: index };
       brace += 1;
     } else if (char === "}" && brace > 0) brace -= 1;
     else if (char === ";" && paren === 0 && bracket === 0 && angle === 0 && brace === 0) return { expr: index };
@@ -160,12 +161,13 @@ function statementEnd(source: string, from: number): { body: number } | { expr: 
   return undefined;
 }
 
-function isBodyBrace(source: string, index: number): boolean {
+function isBodyBrace(source: string, index: number, arrow: boolean): boolean {
   let cursor = index - 1;
   while (cursor >= 0 && /\s/.test(source[cursor])) cursor -= 1;
   if (cursor < 0) return false;
   const previous = source[cursor];
-  if (previous === ")" || previous === ">" || previous === "}" || previous === "]") return true;
+  if (previous === ">" ) return !arrow || source[cursor - 1] === "=";
+  if (previous === ")" || previous === "}" || previous === "]") return true;
   return /[A-Za-z0-9_$]/.test(previous);
 }
 

@@ -49,9 +49,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerTreeDataProvider("codebank.updates", updates),
     vscode.commands.registerCommand("codebank.deposit", () => depositSelection(bankHome, () => bank.refresh())),
     vscode.commands.registerCommand("codebank.search", () => searchCommand(bankHome)),
-    vscode.commands.registerCommand("codebank.insert", (item?: unknown, repoId?: string) => {
+    vscode.commands.registerCommand("codebank.insert", (item?: unknown, repoId?: string, projectPath?: string) => {
       const slug = treeId(item);
-      return slug ? insertSlug(bankHome(), slug, repoId) : insertCommand(bankHome);
+      return slug ? insertSlug(bankHome(), slug, repoId, projectPath) : insertCommand(bankHome);
     }),
     vscode.commands.registerCommand("codebank.openInbox", () => {
       void vscode.commands.executeCommand("codebank.inbox.focus");

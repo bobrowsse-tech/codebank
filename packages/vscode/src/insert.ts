@@ -13,7 +13,7 @@ export async function insertCommand(homeOf: () => string): Promise<void> {
   await insertSlug(home, picked.slug);
 }
 
-export async function insertSlug(home: string, slug: string, repoId?: string): Promise<void> {
+export async function insertSlug(home: string, slug: string, repoId?: string, projectPath?: string): Promise<void> {
   const entry = readEntry(home, slug);
   if (!entry) {
     void vscode.window.showWarningMessage(`No entry named ${slug}.`);
@@ -27,15 +27,15 @@ export async function insertSlug(home: string, slug: string, repoId?: string): P
     { placeHolder: "How should this entry be inserted?" },
   );
   if (!mode) return;
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
+  const root = projectPath ? vscode.Uri.file(projectPath) : vscode.workspace.workspaceFolders?.[0]?.uri;
+  if (!root) {
     void vscode.window.showInformationMessage("Open a folder before inserting.");
     return;
   }
   const editor = vscode.window.activeTextEditor;
   const targetLanguage = editor ? languageFromFile(editor.document.fileName) : entry.language;
-  const packageJson = vscode.Uri.joinPath(folder.uri, "package.json").fsPath;
-  const repo = describeRepo(folder.uri.fsPath);
+  const packageJson = vscode.Uri.joinPath(root, "package.json").fsPath;
+  const repo = describeRepo(root.fsPath);
   const insertDir = vscode.workspace.getConfiguration("codebank").get<string>("insertDir") || "src/codebank";
   let confirmed = false;
   const files = readEntryFiles(home, slug);
@@ -47,7 +47,7 @@ export async function insertSlug(home: string, slug: string, repoId?: string): P
     targetPackageJson: packageJson,
     targetOrg: repo.org,
     fromFile: editor?.document.fileName,
-    projectDir: folder.uri.fsPath,
+    projectDir: root.fsPath,
     insertDir,
   };
   let plan = planInsert({ ...planned, confirmedCrossOrg: confirmed });
@@ -78,7 +78,7 @@ export async function insertSlug(home: string, slug: string, repoId?: string): P
     }
   } else {
     try {
-      applyInsert(folder.uri.fsPath, insertDir, plan);
+      applyInsert(root.fsPath, insertDir, plan);
     } catch (error) {
       void vscode.window.showWarningMessage(error instanceof Error ? error.message : "Insert path was rejected.");
       return;

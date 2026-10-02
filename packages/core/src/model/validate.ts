@@ -77,6 +77,10 @@ export function problemsForFiles(files: SourceFile[]): string[] {
       .split(/[\\/]/)
       .filter((part) => part !== "" && part !== ".")
       .join("/");
+    if (!destination) {
+      problems.push(`rejected path ${file.relPath}`);
+      continue;
+    }
     if (seen.has(destination)) problems.push(`duplicate path ${destination}`);
     seen.add(destination);
   }

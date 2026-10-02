@@ -105,7 +105,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN is unset. Skipping npm. Set it only after the CLI name is scoped."
+            echo "NPM_TOKEN is unset. Skipping npm. The CLI publishes as @bobrowsse-tech/codebank."
             exit 0
           fi
           if [ ! -f packages/cli/package.json ]; then
@@ -117,7 +117,7 @@ jobs:
           const pkg = require("./packages/cli/package.json");
           if (pkg.private) process.exit(10);
           if (!pkg.name || !pkg.name.startsWith("@")) {
-            console.error(`Refusing to publish "${pkg.name || ""}". The unscoped name codebank is taken; choose a scope first.`);
+            console.error(`Refusing to publish "${pkg.name || ""}". The unscoped name codebank is taken. Publish @bobrowsse-tech/codebank.`);
             process.exit(1);
           }
           EOF

@@ -7,7 +7,7 @@ import { contentHash } from "../closure/hash";
 import { logStage } from "../log";
 import { tuning } from "../tuning";
 import type { Candidate, SourceFile } from "../model/types";
-import { isPackageDep, problemsForCandidate, problemsForFiles, toSlug } from "../model/validate";
+import { isPackageDep, problemsForCandidate, problemsForFiles, requireSchema, toSlug } from "../model/validate";
 import { scanSecrets } from "../security/secrets";
 import { atomicWriteJson, readJson } from "./atomic";
 import { withLock } from "./lock";
@@ -20,8 +20,9 @@ export function listCandidates(home: string): Candidate[] {
   const candidates: Candidate[] = [];
   for (const name of fs.readdirSync(root)) {
     if (!name.endsWith(".json")) continue;
-    const candidate = readJson<Candidate>(path.join(root, name));
-    if (candidate.schema !== 1) continue;
+    const file = path.join(root, name);
+    const candidate = readJson<Candidate>(file);
+    requireSchema(candidate, file);
     candidates.push(candidate);
   }
   return candidates.sort((left, right) => right.score - left.score);
@@ -37,7 +38,9 @@ function candidatePath(home: string, id: string): string | undefined {
 export function readCandidate(home: string, id: string): Candidate | undefined {
   const file = candidatePath(home, id);
   if (!file || !fs.existsSync(file)) return undefined;
-  return readJson<Candidate>(file);
+  const candidate = readJson<Candidate>(file);
+  requireSchema(candidate, file);
+  return candidate;
 }
 
 export function writeCandidateHeld(home: string, candidate: Candidate): void {
