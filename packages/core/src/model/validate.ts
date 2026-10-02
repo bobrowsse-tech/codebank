@@ -38,6 +38,16 @@ export function toSlug(title: string): string {
   return isSlug(slug) ? slug : "entry";
 }
 
+export function freeSlug(base: string, taken: Set<string>): string {
+  if (!taken.has(base)) return base;
+  for (let n = 2; n < 50; n += 1) {
+    const suffix = `-${n}`;
+    const candidate = `${base.slice(0, tuning.limits.slug - suffix.length)}${suffix}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return base;
+}
+
 export function problemsForEntry(entry: Entry): string[] {
   const problems: string[] = [];
   if (entry.schema !== 1) problems.push("schema must be 1");

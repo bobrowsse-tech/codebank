@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { appendUsage, applyInsert, describeRepo, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, searchBank } from "../../core/src/index.ts";
+import { appendUsageLocked, applyInsert, describeRepo, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, searchBank } from "../../core/src/index.ts";
 import { languageFromFile } from "../../core/src/closure/extract.ts";
 
 export async function insertCommand(homeOf: () => string): Promise<void> {
@@ -94,7 +94,7 @@ export async function insertSlug(home: string, slug: string, repoId?: string, pr
   }
   await recordUse(home, slug, plan.verbatim);
   if (repoId) await noteAccepted(home, repoId, slug);
-  appendUsage(home, { t: new Date().toISOString(), kind: "inserted", surface: repoId ? "codelens" : "quickpick", slug, verbatim: plan.verbatim });
+  await appendUsageLocked(home, { t: new Date().toISOString(), kind: "inserted", surface: repoId ? "codelens" : "quickpick", slug, verbatim: plan.verbatim });
   if (plan.installCommand) {
     const install = await vscode.window.showInformationMessage(`Missing ${plan.missingDeps.map((dep) => dep.name).join(", ")}.`, "Show install command");
     if (install) {

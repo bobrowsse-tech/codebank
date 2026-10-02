@@ -94,6 +94,22 @@ test("an agent proposal stays in the inbox until it is accepted", async () => {
   assert.equal(accepted.ok, true);
   assert.equal(listCandidates(home).some((item) => item.id === proposed.candidate.id), false);
   assert.equal(listEntries(home)[0]?.slug, "format-currency");
+  const colliding = await proposeCandidate(home, {
+    title: "Format currency",
+    intent: "A second copy with a different body.",
+    tags: ["currency"],
+    files: [{ relPath: "src/format-again.ts", content: "export function formatCurrencyAgain(cents: number) { return cents; }\n" }],
+  });
+  assert.equal(colliding.ok, true);
+  if (!colliding.ok) return;
+  assert.equal(colliding.candidate.draft.slug, "format-currency-2");
+  const stored = path.join(home, "inbox", `${colliding.candidate.id}.json`);
+  const raw = JSON.parse(fs.readFileSync(stored, "utf8")) as { draft: { slug: string } };
+  raw.draft.slug = "format-currency";
+  fs.writeFileSync(stored, JSON.stringify(raw));
+  const second = await acceptCandidate(home, colliding.candidate.id);
+  assert.equal(second.ok, true);
+  if (second.ok) assert.equal(second.entry.slug, "format-currency-2");
   const victim = path.join(home, "victim.json");
   fs.writeFileSync(victim, "{}");
   assert.equal(await dismissCandidate(home, "../../victim"), false);
@@ -317,9 +333,6 @@ test("a root generated directory is not scanned", async () => {
     files: [{ relPath: ".", content: "export function dot() { return 1; }\n" }],
   });
   assert.equal(dotted.ok, false);
-  fs.writeFileSync(path.join(home, "inbox", "aaaaaaaaaaaaaaaa.json"), JSON.stringify({ schema: 2 }));
-  assert.throws(() => readCandidate(home, "aaaaaaaaaaaaaaaa"), SchemaError);
-  assert.throws(() => listCandidates(home), SchemaError);
   const commentedExport = await proposeCandidate(home, {
     title: "Real export",
     intent: "Ignores a commented export.",
@@ -328,6 +341,9 @@ test("a root generated directory is not scanned", async () => {
   });
   assert.equal(commentedExport.ok, true);
   if (commentedExport.ok) assert.equal(commentedExport.candidate.draft.symbols[0], "real");
+  fs.writeFileSync(path.join(home, "inbox", "aaaaaaaaaaaaaaaa.json"), JSON.stringify({ schema: 2 }));
+  assert.throws(() => readCandidate(home, "aaaaaaaaaaaaaaaa"), SchemaError);
+  assert.throws(() => listCandidates(home), SchemaError);
 });
 
 test("a pending inbox slug is reserved for the next scan", async () => {

@@ -7,11 +7,11 @@ import { contentHash } from "../closure/hash";
 import { logStage } from "../log";
 import { tuning } from "../tuning";
 import type { Candidate, SourceFile } from "../model/types";
-import { isPackageDep, problemsForCandidate, problemsForFiles, requireSchema, toSlug } from "../model/validate";
+import { freeSlug, isPackageDep, problemsForCandidate, problemsForFiles, requireSchema, toSlug } from "../model/validate";
 import { scanSecrets } from "../security/secrets";
 import { atomicWriteJson, readJson } from "./atomic";
 import { withLock } from "./lock";
-import { saveEntryHeld, type SaveOutcome } from "./entries";
+import { listEntries, saveEntryHeld, type SaveOutcome } from "./entries";
 import { assertSafeRelPath, bankPaths } from "./paths";
 
 export function listCandidates(home: string): Candidate[] {
@@ -85,10 +85,12 @@ export async function acceptCandidate(home: string, id: string): Promise<SaveOut
   return withLock(bankPaths(home).lock, () => {
     const candidate = readCandidate(home, id);
     if (!candidate) return { ok: false, reason: "missing" };
+    const taken = new Set(listEntries(home).map((entry) => entry.slug));
+    const slug = freeSlug(candidate.draft.slug, taken);
     const outcome = saveEntryHeld(
       home,
       {
-        slug: candidate.draft.slug,
+        slug,
         title: candidate.draft.title,
         language: candidate.draft.language,
         entryFile: candidate.draft.entryFile,
@@ -184,6 +186,13 @@ export async function proposeCandidate(home: string, proposal: Proposal): Promis
     proposedBy: "agent",
     createdAt: new Date().toISOString(),
   };
-  await writeCandidate(home, candidate);
+  await withLock(bankPaths(home).lock, () => {
+    const taken = new Set([
+      ...listEntries(home).map((entry) => entry.slug),
+      ...listCandidates(home).map((item) => item.draft.slug),
+    ]);
+    candidate.draft.slug = freeSlug(candidate.draft.slug, taken);
+    writeCandidateHeld(home, candidate);
+  });
   return { ok: true, candidate };
 }

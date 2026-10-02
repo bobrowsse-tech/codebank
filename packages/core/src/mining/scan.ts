@@ -8,7 +8,7 @@ import { heuristicClosure, languageFromFile, withRequiredImports } from "../clos
 import { describeRepo } from "../git/repo";
 import { logStage } from "../log";
 import type { Candidate } from "../model/types";
-import { toSlug } from "../model/validate";
+import { freeSlug, toSlug } from "../model/validate";
 import { scanSecrets } from "../security/secrets";
 import { resolveOwnership } from "../security/ownership";
 import { listEntries } from "../store/entries";
@@ -435,12 +435,3 @@ function fingerprintOf(unit: FoundUnit): string {
   return [...unit.grams].sort().join("|");
 }
 
-function freeSlug(base: string, taken: Set<string>): string {
-  if (!taken.has(base)) return base;
-  for (let n = 2; n < 50; n += 1) {
-    const suffix = `-${n}`;
-    const candidate = `${base.slice(0, 48 - suffix.length)}${suffix}`;
-    if (!taken.has(candidate)) return candidate;
-  }
-  return base;
-}
