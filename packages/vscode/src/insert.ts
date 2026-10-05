@@ -1,6 +1,13 @@
+import path from "node:path";
 import * as vscode from "vscode";
-import { appendUsageLocked, applyInsert, describeRepo, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, searchBank } from "../../core/src/index.ts";
+import { appendUsageLocked, applyInsert, describeRepo, lineageMode, loadConfig, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, searchBank, upsertLink } from "../../core/src/index.ts";
 import { languageFromFile } from "../../core/src/closure/extract.ts";
+
+function lineageSetting(): string | undefined {
+  const inspected = vscode.workspace.getConfiguration("codebank").inspect<string>("lineage.mode");
+  const value = inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
+  return typeof value === "string" ? value : undefined;
+}
 
 export async function insertCommand(homeOf: () => string): Promise<void> {
   const home = homeOf();
@@ -37,6 +44,7 @@ export async function insertSlug(home: string, slug: string, repoId?: string, pr
   const packageJson = vscode.Uri.joinPath(root, "package.json").fsPath;
   const repo = describeRepo(root.fsPath);
   const insertDir = vscode.workspace.getConfiguration("codebank").get<string>("insertDir") || "src/codebank";
+  const lineage = lineageMode(loadConfig(home), entry.ownership, lineageSetting());
   let confirmed = false;
   const files = readEntryFiles(home, slug);
   const planned = {
@@ -49,6 +57,7 @@ export async function insertSlug(home: string, slug: string, repoId?: string, pr
     fromFile: editor?.document.fileName,
     projectDir: root.fsPath,
     insertDir,
+    lineage,
   };
   let plan = planInsert({ ...planned, confirmedCrossOrg: confirmed });
   if (plan.blocked === "cross-org") {
@@ -91,6 +100,23 @@ export async function insertSlug(home: string, slug: string, repoId?: string, pr
         return;
       }
     }
+  }
+  const locations = mode.mode === "cursor" && editor
+    ? [path.relative(root.fsPath, editor.document.uri.fsPath)]
+    : plan.files.map((file) => [insertDir, slug, file.relPath].join("/"));
+  for (const rel of locations) {
+    const relPath = rel.split(path.sep).join("/");
+    if (!relPath || relPath.split("/").includes("..")) continue;
+    await upsertLink(home, {
+      slug: entry.slug,
+      version: entry.version,
+      baseHash: entry.contentHash,
+      repoId: repo.repoId,
+      relPath,
+      mode: lineage,
+      localHash: entry.contentHash,
+      insertedAt: new Date().toISOString(),
+    });
   }
   await recordUse(home, slug, plan.verbatim);
   if (repoId) await noteAccepted(home, repoId, slug);

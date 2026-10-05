@@ -99,13 +99,14 @@ export function saveEntryHeld(
   if (problems.length > 0) return { ok: false, reason: "invalid", problems };
 
   const dir = path.join(bankPaths(home).entries, entry.slug);
+  const codeDir = path.join(dir, "code");
   if (existing) {
     const versionDir = path.join(dir, "versions", String(existing.version));
     fs.mkdirSync(versionDir, { recursive: true });
     atomicWriteJson(path.join(versionDir, "entry.json"), existing);
+    if (fs.existsSync(codeDir)) fs.cpSync(codeDir, path.join(versionDir, "code"), { recursive: true });
   }
   fs.mkdirSync(dir, { recursive: true });
-  const codeDir = path.join(dir, "code");
   fs.rmSync(codeDir, { recursive: true, force: true });
   for (const file of files) {
     atomicWrite(resolveInside(codeDir, file.relPath), file.content);
@@ -143,8 +144,17 @@ export function listEntries(home: string): Entry[] {
   return entries;
 }
 
+export function readVersionFiles(home: string, slug: string, version: number): SourceFile[] {
+  const current = readEntry(home, slug);
+  if (!current || current.version === version) return readEntryFiles(home, slug);
+  return readCodeDir(path.join(bankPaths(home).entries, slug, "versions", String(version), "code"));
+}
+
 export function readEntryFiles(home: string, slug: string): SourceFile[] {
-  const codeRoot = path.join(bankPaths(home).entries, slug, "code");
+  return readCodeDir(path.join(bankPaths(home).entries, slug, "code"));
+}
+
+function readCodeDir(codeRoot: string): SourceFile[] {
   if (!fs.existsSync(codeRoot)) return [];
   const rootReal = fs.realpathSync(codeRoot);
   const files: SourceFile[] = [];

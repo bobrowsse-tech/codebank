@@ -33,6 +33,7 @@ export function planInsert(input: {
   fromFile?: string;
   projectDir?: string;
   insertDir?: string;
+  lineage?: "marker" | "external";
 }): InsertPlan {
   logStage("insert", "in", { slug: input.entry.slug, mode: input.mode });
   const blocked = crossOrgBlocked(input.entry.ownership, input.entry.origin.org, input.targetOrg) && !input.confirmedCrossOrg;
@@ -54,7 +55,7 @@ export function planInsert(input: {
     mode: input.mode,
     files: input.files.map((file) => ({
       relPath: file.relPath,
-      content: input.mode === "cursor" ? `${start}\n${file.content}\n${end}` : `${start}\n${file.content}`,
+      content: input.lineage === "external" ? file.content : input.mode === "cursor" ? `${start}\n${file.content}\n${end}` : `${start}\n${file.content}`,
     })),
     importLine,
     missingDeps,
@@ -91,7 +92,7 @@ function installCommand(deps: { name: string; range: string }[]): string | undef
   return `npm install ${safe.map((dep) => `'${dep.name}@${dep.range}'`).join(" ")}`;
 }
 
-function endMarkerLine(language: Language): string {
+export function endMarkerLine(language: Language): string {
   return commentFor(language, "@codebank-end");
 }
 

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { listCandidates, listEntries, type Entry } from "../../core/src/index.ts";
+import { workspaceUpdates } from "./lineage.ts";
 
 export class BankView implements vscode.TreeDataProvider<BankNode> {
   private readonly change = new vscode.EventEmitter<void>();
@@ -58,19 +59,35 @@ export class InboxView implements vscode.TreeDataProvider<BankNode> {
 }
 
 export class UpdatesView implements vscode.TreeDataProvider<BankNode> {
-  readonly onDidChangeTreeData = new vscode.EventEmitter<void>().event;
+  private readonly change = new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData = this.change.event;
+
+  constructor(private readonly home: () => string) {}
+
+  refresh(): void {
+    this.change.fire();
+  }
+
   getTreeItem(element: BankNode): vscode.TreeItem {
     return element;
   }
-  getChildren(): BankNode[] {
-    return [new BankNode("Insert an entry to track updates.", "empty")];
+
+  async getChildren(): Promise<BankNode[]> {
+    const notices = await workspaceUpdates(this.home());
+    if (notices.length === 0) return [new BankNode("Insert an entry to track updates.", "empty")];
+    return notices.map((notice) => {
+      const node = new BankNode(`${notice.title} v${notice.toVersion}`, "update", notice.slug);
+      node.description = `${notice.relPath} · v${notice.fromVersion}`;
+      node.command = { command: "codebank.reviewUpdate", title: "Review Update", arguments: [notice.slug, notice.relPath, notice.repoId] };
+      return node;
+    });
   }
 }
 
 class BankNode extends vscode.TreeItem {
   constructor(
     readonly labelText: string,
-    readonly kind: "tag" | "entry" | "candidate" | "empty",
+    readonly kind: "tag" | "entry" | "candidate" | "empty" | "update",
     readonly slug?: string,
   ) {
     super(labelText, kind === "tag" ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None);
