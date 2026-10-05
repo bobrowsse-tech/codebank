@@ -20,6 +20,7 @@ suite("Codebank", function () {
     assert.ok(commands.includes("codebank.deposit"));
     assert.ok(commands.includes("codebank.search"));
     assert.ok(commands.includes("codebank.mine"));
+    assert.ok(commands.includes("codebank.reviewUpdate"));
     assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_search"));
     assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_get"));
     assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_propose"));

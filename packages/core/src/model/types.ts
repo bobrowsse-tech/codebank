@@ -55,6 +55,7 @@ export interface Link {
   baseHash: string;
   repoId: string;
   relPath: string;
+  sourceRelPath?: string;
   mode: "marker" | "external";
   localHash: string;
   insertedAt: string;

@@ -12,6 +12,8 @@ The repository is public and licensed under MIT. Implementation follows `spec/CO
 
 From a terminal, the same bank is `codebank add`, `codebank search`, and `codebank get`. `codebank mine` looks through local repositories and leaves candidates in the inbox until you accept one. `codebank mcp` speaks the agent protocol on standard input.
 
+An insert keeps a marker so a later version shows up under Updates. External mode stores that link and does not add marker text. Taking an update is one editor edit, so one undo puts the old copy back. A conflict is never applied on its own.
+
 ## Repository rules
 
 `main` is locked. Changes merge only through pull requests, CI must pass, and force-pushes and branch deletion are blocked. Administrators do not bypass those rules.

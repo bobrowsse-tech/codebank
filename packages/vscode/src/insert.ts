@@ -1,6 +1,13 @@
+import path from "node:path";
 import * as vscode from "vscode";
-import { appendUsageLocked, applyInsert, describeRepo, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, searchBank } from "../../core/src/index.ts";
+import { appendUsageLocked, applyInsert, describeRepo, lineageMode, linkedContentHash, loadConfig, markerBody, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, rememberRepo, searchBank, upsertLink } from "../../core/src/index.ts";
 import { languageFromFile } from "../../core/src/closure/extract.ts";
+
+function lineageSetting(): string | undefined {
+  const inspected = vscode.workspace.getConfiguration("codebank").inspect<string>("lineage.mode");
+  const value = inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
+  return typeof value === "string" ? value : undefined;
+}
 
 export async function insertCommand(homeOf: () => string): Promise<void> {
   const home = homeOf();
@@ -37,6 +44,7 @@ export async function insertSlug(home: string, slug: string, repoId?: string, pr
   const packageJson = vscode.Uri.joinPath(root, "package.json").fsPath;
   const repo = describeRepo(root.fsPath);
   const insertDir = vscode.workspace.getConfiguration("codebank").get<string>("insertDir") || "src/codebank";
+  const lineage = lineageMode(loadConfig(home), entry.ownership, lineageSetting());
   let confirmed = false;
   const files = readEntryFiles(home, slug);
   const planned = {
@@ -49,6 +57,7 @@ export async function insertSlug(home: string, slug: string, repoId?: string, pr
     fromFile: editor?.document.fileName,
     projectDir: root.fsPath,
     insertDir,
+    lineage,
   };
   let plan = planInsert({ ...planned, confirmedCrossOrg: confirmed });
   if (plan.blocked === "cross-org") {
@@ -92,6 +101,31 @@ export async function insertSlug(home: string, slug: string, repoId?: string, pr
       }
     }
   }
+  const copies = mode.mode === "cursor" && editor
+    ? [{ relPath: path.relative(root.fsPath, editor.document.uri.fsPath), sourceRelPath: entry.entryFile, written: plan.files[0]?.content ?? "" }]
+    : plan.files.map((file) => ({
+        relPath: [insertDir, slug, file.relPath].join("/"),
+        sourceRelPath: file.relPath,
+        written: file.content,
+      }));
+  for (const copy of copies) {
+    const relPath = copy.relPath.split(path.sep).join("/");
+    if (!relPath || relPath.split("/").includes("..")) continue;
+    const body = lineage === "external" ? copy.written : (markerBody(copy.written, entry.slug) ?? copy.written);
+    const hash = linkedContentHash(copy.sourceRelPath, body);
+    await upsertLink(home, {
+      slug: entry.slug,
+      version: entry.version,
+      baseHash: hash,
+      repoId: repo.repoId,
+      relPath,
+      sourceRelPath: copy.sourceRelPath,
+      mode: lineage,
+      localHash: hash,
+      insertedAt: new Date().toISOString(),
+    });
+  }
+  await rememberRepo(home, repo.repoId, repo.root);
   await recordUse(home, slug, plan.verbatim);
   if (repoId) await noteAccepted(home, repoId, slug);
   await appendUsageLocked(home, { t: new Date().toISOString(), kind: "inserted", surface: repoId ? "codelens" : "quickpick", slug, verbatim: plan.verbatim });

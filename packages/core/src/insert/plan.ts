@@ -33,6 +33,7 @@ export function planInsert(input: {
   fromFile?: string;
   projectDir?: string;
   insertDir?: string;
+  lineage?: "marker" | "external";
 }): InsertPlan {
   logStage("insert", "in", { slug: input.entry.slug, mode: input.mode });
   const blocked = crossOrgBlocked(input.entry.ownership, input.entry.origin.org, input.targetOrg) && !input.confirmedCrossOrg;
@@ -46,16 +47,18 @@ export function planInsert(input: {
   const verbatim = languageMatches && !majorMismatch && missingDeps.length === 0;
   const symbol = input.symbol || input.entry.symbols[0] || input.entry.title;
   const importLine = input.mode === "add" ? importFrom(input, symbol) : undefined;
-  const start = markerLine(input.entry.language, input.entry.slug, input.entry.version, input.entry.contentHash);
-  const end = endMarkerLine(input.entry.language);
   const plan: InsertPlan = {
     slug: input.entry.slug,
     version: input.entry.version,
     mode: input.mode,
-    files: input.files.map((file) => ({
-      relPath: file.relPath,
-      content: input.mode === "cursor" ? `${start}\n${file.content}\n${end}` : `${start}\n${file.content}`,
-    })),
+    files: input.files.map((file) => {
+      const start = markerLine(input.entry.language, input.entry.slug, input.entry.version, input.entry.contentHash, file.relPath);
+      const end = endMarkerLine(input.entry.language, file.relPath);
+      return {
+        relPath: file.relPath,
+        content: input.lineage === "external" ? file.content : input.mode === "cursor" ? `${start}\n${file.content}\n${end}` : `${start}\n${file.content}`,
+      };
+    }),
     importLine,
     missingDeps,
     installCommand: installCommand(missingDeps),
@@ -81,8 +84,8 @@ export function applyInsert(projectDir: string, insertDir: string, plan: InsertP
   return written;
 }
 
-export function markerLine(language: Language, slug: string, version: number, hash: string): string {
-  return commentFor(language, `@codebank ${slug} v${version} ${hash}`);
+export function markerLine(language: Language, slug: string, version: number, hash: string, filePath?: string): string {
+  return commentFor(language, `@codebank ${slug} v${version} ${hash}`, filePath);
 }
 
 function installCommand(deps: { name: string; range: string }[]): string | undefined {
@@ -91,11 +94,15 @@ function installCommand(deps: { name: string; range: string }[]): string | undef
   return `npm install ${safe.map((dep) => `'${dep.name}@${dep.range}'`).join(" ")}`;
 }
 
-function endMarkerLine(language: Language): string {
-  return commentFor(language, "@codebank-end");
+export function endMarkerLine(language: Language, filePath?: string): string {
+  return commentFor(language, "@codebank-end", filePath);
 }
 
-function commentFor(language: Language, text: string): string {
+function commentFor(language: Language, text: string, filePath?: string): string {
+  const ext = filePath ? path.extname(filePath).toLowerCase() : "";
+  if (ext === ".html" || ext === ".htm") return `<!-- ${text} -->`;
+  if (ext === ".css" || ext === ".scss") return `/* ${text} */`;
+  if (ext === ".ts" || ext === ".tsx" || ext === ".js" || ext === ".jsx") return `// ${text}`;
   if (language === "css" || language === "scss") return `/* ${text} */`;
   if (language === "other") return `# ${text}`;
   return `// ${text}`;

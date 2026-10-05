@@ -27,7 +27,8 @@
       { "command": "codebank.accept", "title": "Accept Candidate" },
       { "command": "codebank.dismiss", "title": "Dismiss Candidate" },
       { "command": "codebank.preview", "title": "Preview" },
-      { "command": "codebank.mute", "title": "Mute Suggestions Here" }
+      { "command": "codebank.mute", "title": "Mute Suggestions Here" },
+      { "command": "codebank.reviewUpdate", "title": "Codebank: Review Update" }
     ],
     "keybindings": [
       { "command": "codebank.deposit", "key": "ctrl+alt+b", "mac": "cmd+alt+b", "when": "editorHasSelection" },
@@ -54,7 +55,8 @@
         { "command": "codebank.retire", "when": "view == codebank.bank && viewItem == entry" },
         { "command": "codebank.previewCandidate", "when": "view == codebank.inbox && viewItem == candidate", "group": "inline" },
         { "command": "codebank.accept", "when": "view == codebank.inbox && viewItem == candidate", "group": "inline" },
-        { "command": "codebank.dismiss", "when": "view == codebank.inbox && viewItem == candidate" }
+        { "command": "codebank.dismiss", "when": "view == codebank.inbox && viewItem == candidate" },
+        { "command": "codebank.reviewUpdate", "when": "view == codebank.updates && viewItem == update", "group": "inline" }
       ]
     },
     "configuration": {

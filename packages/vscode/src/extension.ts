@@ -5,6 +5,7 @@ import { depositSelection } from "./deposit.ts";
 import { insertCommand, insertSlug } from "./insert.ts";
 import { previewCandidate, searchCommand } from "./search.ts";
 import { registerRecall } from "./recall.ts";
+import { noteSavedCopy, noteWorkspaceDrift, reviewUpdate, updateEvents, updateText } from "./lineage.ts";
 import { scanFolders } from "./scan.ts";
 import { registerTools } from "./tools.ts";
 
@@ -30,7 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const bank = new BankView(() => bankHome());
   const inbox = new InboxView(bankHome);
-  const updates = new UpdatesView();
+  const updates = new UpdatesView(bankHome);
   const inboxView = vscode.window.createTreeView("codebank.inbox", { treeDataProvider: inbox });
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
   const refreshStatus = () => {
@@ -47,6 +48,7 @@ export function activate(context: vscode.ExtensionContext): void {
     inboxView,
     vscode.window.registerTreeDataProvider("codebank.bank", bank),
     vscode.window.registerTreeDataProvider("codebank.updates", updates),
+    vscode.workspace.registerTextDocumentContentProvider("codebank-update", { onDidChange: updateEvents(), provideTextDocumentContent: updateText }),
     vscode.commands.registerCommand("codebank.deposit", () => depositSelection(bankHome, () => bank.refresh())),
     vscode.commands.registerCommand("codebank.search", () => searchCommand(bankHome)),
     vscode.commands.registerCommand("codebank.insert", (item?: unknown, repoId?: string, projectPath?: string) => {
@@ -65,6 +67,13 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(bankHome()));
     }),
     vscode.commands.registerCommand("codebank.mine", () => scanFolders(bankHome, refreshInbox)),
+    vscode.commands.registerCommand("codebank.reviewUpdate", async (slug?: unknown, relPath?: unknown, repoId?: unknown) => {
+      const target = updateTarget(slug, relPath, repoId);
+      if (!target) return;
+      await reviewUpdate(bankHome(), target.slug, target.relPath, target.repoId);
+      updates.refresh();
+      bank.refresh();
+    }),
     vscode.commands.registerCommand("codebank.previewCandidate", (item?: unknown) => {
       const id = treeId(item);
       if (id) return previewCandidate(bankHome(), id);
@@ -86,6 +95,13 @@ export function activate(context: vscode.ExtensionContext): void {
     ...registerTools(bankHome, refreshInbox),
   );
   registerRecall(context, bankHome);
+  context.subscriptions.push(vscode.workspace.onDidSaveTextDocument((document) => {
+    void noteSavedCopy(bankHome(), document).then(() => updates.refresh());
+  }));
+  void noteWorkspaceDrift(bankHome()).then(() => {
+    updates.refresh();
+    bank.refresh();
+  });
 
   refreshStatus();
   if (!context.globalState.get<boolean>("codebank.firstScan")) {
@@ -100,14 +116,36 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const homeUri = vscode.Uri.file(bankHome());
   const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(homeUri, "entries/**"));
-  watcher.onDidChange(() => bank.refresh());
-  watcher.onDidCreate(() => bank.refresh());
-  watcher.onDidDelete(() => bank.refresh());
+  watcher.onDidChange(() => {
+    bank.refresh();
+    updates.refresh();
+  });
+  watcher.onDidCreate(() => {
+    bank.refresh();
+    updates.refresh();
+  });
+  watcher.onDidDelete(() => {
+    bank.refresh();
+    updates.refresh();
+  });
   const inboxWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(homeUri, "inbox/**"));
   inboxWatcher.onDidChange(refreshInbox);
   inboxWatcher.onDidCreate(refreshInbox);
   inboxWatcher.onDidDelete(refreshInbox);
   context.subscriptions.push(watcher, inboxWatcher);
+}
+
+function updateTarget(slug?: unknown, relPath?: unknown, repoId?: unknown): { slug: string; relPath: string; repoId: string } | undefined {
+  if (typeof slug === "string" && typeof relPath === "string" && typeof repoId === "string" && slug && relPath && repoId) {
+    return { slug, relPath, repoId };
+  }
+  if (!slug || typeof slug !== "object") return undefined;
+  const args = (slug as { command?: { arguments?: unknown[] } }).command?.arguments ?? [];
+  const [id, file, repo] = args;
+  if (typeof id === "string" && typeof file === "string" && typeof repo === "string" && id && file && repo) {
+    return { slug: id, relPath: file, repoId: repo };
+  }
+  return undefined;
 }
 
 function treeId(item: unknown): string | undefined {
