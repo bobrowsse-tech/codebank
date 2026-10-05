@@ -5,7 +5,7 @@ import { depositSelection } from "./deposit.ts";
 import { insertCommand, insertSlug } from "./insert.ts";
 import { previewCandidate, searchCommand } from "./search.ts";
 import { registerRecall } from "./recall.ts";
-import { noteSavedCopy, noteWorkspaceDrift, reviewUpdate, updateText } from "./lineage.ts";
+import { noteSavedCopy, noteWorkspaceDrift, reviewUpdate, updateEvents, updateText } from "./lineage.ts";
 import { scanFolders } from "./scan.ts";
 import { registerTools } from "./tools.ts";
 
@@ -48,7 +48,7 @@ export function activate(context: vscode.ExtensionContext): void {
     inboxView,
     vscode.window.registerTreeDataProvider("codebank.bank", bank),
     vscode.window.registerTreeDataProvider("codebank.updates", updates),
-    vscode.workspace.registerTextDocumentContentProvider("codebank-update", { provideTextDocumentContent: updateText }),
+    vscode.workspace.registerTextDocumentContentProvider("codebank-update", { onDidChange: updateEvents(), provideTextDocumentContent: updateText }),
     vscode.commands.registerCommand("codebank.deposit", () => depositSelection(bankHome, () => bank.refresh())),
     vscode.commands.registerCommand("codebank.search", () => searchCommand(bankHome)),
     vscode.commands.registerCommand("codebank.insert", (item?: unknown, repoId?: string, projectPath?: string) => {

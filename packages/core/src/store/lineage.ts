@@ -4,9 +4,9 @@ import { contentHash } from "../closure/hash";
 import { logStage } from "../log";
 import type { BankConfig, Entry, Link, SourceFile } from "../model/types";
 import { requireSchema } from "../model/validate";
-import { markerBody, parseMarkers } from "../lineage/marker";
+import { markerBody, occursOnce, parseMarkers } from "../lineage/marker";
 import { atomicWriteJson, readJson } from "./atomic";
-import { readEntry, saveEntry, type SaveOutcome } from "./entries";
+import { readEntry, readVersionFiles, saveEntry, type SaveOutcome } from "./entries";
 import { withLock } from "./lock";
 import { assertSafeRelPath, bankPaths } from "./paths";
 
@@ -168,7 +168,9 @@ export async function noteLocalEdit(
   const entry = readEntry(home, link.slug);
   if (!entry) return { prompt: false };
   const sourceRelPath = linkedSource(entry.entryFile, link);
-  const body = markerBody(content, link.slug) ?? content;
+  const base = readVersionFiles(home, link.slug, link.version).find((file) => file.relPath === sourceRelPath)?.content ?? "";
+  const marked = markerBody(content, link.slug);
+  const body = marked ?? (occursOnce(content, base) ? base : content);
   const hash = linkedContentHash(sourceRelPath, body);
   if (hash === link.localHash) return { prompt: false };
   const prompt = hash !== link.baseHash;

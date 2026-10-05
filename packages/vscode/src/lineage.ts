@@ -9,6 +9,7 @@ import {
   markDrift,
   markerBody,
   noteLocalEdit,
+  occursOnce,
   parseMarkers,
   planUpdate,
   promoteEntry,
@@ -24,6 +25,11 @@ import {
 } from "../../core/src/index.ts";
 
 const pending = new Map<string, string>();
+const pendingChanges = new vscode.EventEmitter<vscode.Uri>();
+
+export function updateEvents(): vscode.Event<vscode.Uri> {
+  return pendingChanges.event;
+}
 
 export async function workspaceUpdates(home: string): Promise<UpdateNotice[]> {
   const folders = vscode.workspace.workspaceFolders ?? [];
@@ -53,13 +59,15 @@ export async function reviewUpdate(home: string, slug: string, relPath: string, 
   const folder = folderFor(repoId);
   if (!entry || !folder) return;
   const uri = vscode.Uri.joinPath(folder.uri, ...relPath.split("/"));
-  let local = "";
+  let document: vscode.TextDocument;
   try {
-    local = fs.readFileSync(uri.fsPath, "utf8");
+    document = await vscode.workspace.openTextDocument(uri);
   } catch {
     void vscode.window.showWarningMessage("The inserted copy is not in this folder.");
     return;
   }
+  const local = document.getText();
+  const seenVersion = document.version;
   const stored = readLinks(home, repoId).find((link) => link.slug === slug && link.relPath === relPath);
   const sourceRelPath = linkedSource(entry.entryFile, stored);
   const version = parseMarkers(local).find((marker) => marker.slug === slug)?.version ?? stored?.version ?? 1;
@@ -69,27 +77,37 @@ export async function reviewUpdate(home: string, slug: string, relPath: string, 
   }
   const base = readVersionFiles(home, slug, version).find((file) => file.relPath === sourceRelPath)?.content ?? "";
   const upstream = readEntryFiles(home, slug).find((file) => file.relPath === sourceRelPath)?.content ?? "";
-  const localBody = markerBody(local, slug) ?? local;
+  const marked = markerBody(local, slug);
+  const localBody = marked ?? (occursOnce(local, base) ? base : local);
   const plan = planUpdate(base, localBody, upstream);
-  pending.set(keyOf(slug, entry.version), upstream);
-  const upstreamUri = vscode.Uri.parse(`codebank-update:${slug}/v${entry.version}`);
+  const upstreamUri = rememberUpstream(slug, entry.version, sourceRelPath, upstream);
   await vscode.commands.executeCommand("vscode.diff", uri, upstreamUri, `${entry.title}: local ↔ v${entry.version}`);
-  if (plan.kind === "conflict") {
-    const choice = await vscode.window.showWarningMessage(`Both copies of ${entry.title} changed. Nothing was applied.`, "Promote mine", "Keep mine");
-    if (choice === "Promote mine") await promoteCopy(home, entry.slug, sourceRelPath, localBody, repoId, relPath, stored?.mode);
-    return;
-  }
-  if (plan.kind === "promote") {
-    const choice = await vscode.window.showInformationMessage(`You changed ${entry.title} and the bank copy is unchanged.`, "Promote mine", "Keep mine");
-    if (choice === "Promote mine") await promoteCopy(home, entry.slug, sourceRelPath, localBody, repoId, relPath, stored?.mode);
+  if (plan.kind === "conflict" || plan.kind === "promote") {
+    const message = plan.kind === "conflict"
+      ? `Both copies of ${entry.title} changed. Nothing was applied.`
+      : `You changed ${entry.title} and the bank copy is unchanged.`;
+    const choice = plan.kind === "conflict"
+      ? await vscode.window.showWarningMessage(message, "Promote mine", "Keep mine")
+      : await vscode.window.showInformationMessage(message, "Promote mine", "Keep mine");
+    if (choice !== "Promote mine") return;
+    const isolated = markerBody(local, slug);
+    if (isolated === undefined && !dedicatedCopy(relPath, entry.slug, sourceRelPath)) {
+      void vscode.window.showWarningMessage("That copy sits inside other code, so it was not promoted.");
+      return;
+    }
+    await promoteCopy(home, entry.slug, sourceRelPath, isolated ?? local, repoId, relPath, stored?.mode);
     return;
   }
   const choice = await vscode.window.showInformationMessage(`${entry.title} v${entry.version} is available.`, "Take update", "Keep mine");
   if (choice !== "Take update") return;
-  const replacement = updateReplacement(local, plan.result, entry.language, entry.slug, entry.version, entry.contentHash, sourceRelPath);
-  const document = await vscode.workspace.openTextDocument(uri);
+  const current = await vscode.workspace.openTextDocument(uri);
+  if (current.version !== seenVersion) {
+    void vscode.window.showWarningMessage("The file changed before the update was applied.");
+    return;
+  }
+  const replacement = updateReplacement(local, plan.result, entry.language, entry.slug, entry.version, entry.contentHash, sourceRelPath, base);
   const edit = new vscode.WorkspaceEdit();
-  edit.replace(uri, new vscode.Range(document.positionAt(replacement.start), document.positionAt(replacement.end)), replacement.text);
+  edit.replace(uri, new vscode.Range(current.positionAt(replacement.start), current.positionAt(replacement.end)), replacement.text);
   if (!(await vscode.workspace.applyEdit(edit))) {
     void vscode.window.showWarningMessage("The editor rejected the update.");
     return;
@@ -122,8 +140,13 @@ export async function noteSavedCopy(home: string, document: vscode.TextDocument)
   if (!entry) return;
   const stored = readLinks(home, repo.repoId).find((link) => link.relPath === relPath);
   const sourceRelPath = linkedSource(entry.entryFile, stored);
-  const body = markerBody(document.getText(), result.slug) ?? document.getText();
-  await promoteCopy(home, result.slug, sourceRelPath, body, repo.repoId, relPath, stored?.mode);
+  const text = document.getText();
+  const isolated = markerBody(text, result.slug);
+  if (isolated === undefined && !dedicatedCopy(relPath, result.slug, sourceRelPath)) {
+    void vscode.window.showWarningMessage("That copy sits inside other code, so it was not promoted.");
+    return;
+  }
+  await promoteCopy(home, result.slug, sourceRelPath, isolated ?? text, repo.repoId, relPath, stored?.mode);
 }
 
 export async function noteWorkspaceDrift(home: string): Promise<void> {
@@ -137,11 +160,20 @@ export async function noteWorkspaceDrift(home: string): Promise<void> {
 }
 
 export function updateText(uri: vscode.Uri): string {
-  return pending.get(uri.path.replace(/^\//, "")) ?? "";
+  return pending.get(decodeURIComponent(uri.path.replace(/^\//, ""))) ?? "";
 }
 
-function keyOf(slug: string, version: number): string {
-  return `${slug}/v${version}`;
+function rememberUpstream(slug: string, version: number, sourceRelPath: string, upstream: string): vscode.Uri {
+  const key = `${slug}/v${version}/${sourceRelPath}`;
+  const previous = pending.get(key);
+  pending.set(key, upstream);
+  const uri = vscode.Uri.parse(`codebank-update:${key}`);
+  if (previous !== undefined && previous !== upstream) pendingChanges.fire(uri);
+  return uri;
+}
+
+function dedicatedCopy(relPath: string, slug: string, sourceRelPath: string): boolean {
+  return relPath === sourceRelPath || relPath.endsWith(`/${slug}/${sourceRelPath}`);
 }
 
 function staleMessage(title: string, reason: string | undefined): string {

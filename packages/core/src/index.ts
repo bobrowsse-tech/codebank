@@ -28,7 +28,7 @@ export { pastedText, suggestRecall } from "./recall/suggest";
 export type { RecallSuggestion } from "./recall/suggest";
 export { noteShown, noteDismissed, noteAccepted, muteRecall } from "./recall/state";
 export { applyInsert, endMarkerLine, markerLine, planInsert } from "./insert/plan";
-export { markerBody, parseMarkers, stripMarkers } from "./lineage/marker";
+export { endMarkerSpan, markerBody, occursOnce, parseMarkers, stripMarkers } from "./lineage/marker";
 export { myersDiff } from "./lineage/diff";
 export { planUpdate, updateReplacement } from "./lineage/plan";
 export type { UpdatePlan } from "./lineage/plan";

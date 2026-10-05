@@ -101,6 +101,8 @@ export function endMarkerLine(language: Language, filePath?: string): string {
 function commentFor(language: Language, text: string, filePath?: string): string {
   const ext = filePath ? path.extname(filePath).toLowerCase() : "";
   if (ext === ".html" || ext === ".htm") return `<!-- ${text} -->`;
+  if (ext === ".css" || ext === ".scss") return `/* ${text} */`;
+  if (ext === ".ts" || ext === ".tsx" || ext === ".js" || ext === ".jsx") return `// ${text}`;
   if (language === "css" || language === "scss") return `/* ${text} */`;
   if (language === "other") return `# ${text}`;
   return `// ${text}`;
