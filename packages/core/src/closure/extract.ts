@@ -144,6 +144,47 @@ function limitFile(source: string, warnings: string[], rel: string): string {
   return [...imports, ...lines.slice(0, tuning.closure.maxWholeFileLines)].join("\n");
 }
 
+export function withRequiredImports(source: string, slice: string): string {
+  const needed = importStatements(source).filter((statement) => {
+    if (slice.includes(statement)) return false;
+    return importedNames(statement).some((name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(slice));
+  });
+  if (needed.length === 0) return slice;
+  return `${needed.join("\n")}\n${slice}`;
+}
+
+function importStatements(source: string): string[] {
+  const statements: string[] = [];
+  const pattern = /(?:^|\n)\s*(import\s*['"][^'"]+['"]\s*;?|import\s[\s\S]*?from\s*['"][^'"]+['"]\s*;?|(?:const|let|var)\s+[^;\n]*require\(\s*['"][^'"]+['"]\s*\)\s*;?)/g;
+  for (const match of source.matchAll(pattern)) {
+    const statement = match[1]?.trim();
+    if (statement) statements.push(statement);
+  }
+  return statements;
+}
+
+function importedNames(statement: string): string[] {
+  const names: string[] = [];
+  const named = statement.match(/\{([^}]+)\}/);
+  if (named) {
+    for (const part of named[1].split(",")) {
+      const piece = part.trim();
+      if (!piece) continue;
+      const alias = piece.replace(/^type\s+/, "").split(/\s+as\s+/);
+      names.push((alias[1] ?? alias[0]).trim());
+    }
+  }
+  const star = statement.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+  if (star?.[1]) names.push(star[1]);
+  const typedDefault = statement.match(/import\s+type\s+([A-Za-z_$][\w$]*)\s+from/);
+  if (typedDefault?.[1]) names.push(typedDefault[1]);
+  const def = statement.match(/import\s+(?!type\b)([A-Za-z_$][\w$]*)\s*(?:,|from)/);
+  if (def?.[1]) names.push(def[1]);
+  const required = statement.match(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require/);
+  if (required?.[1]) names.push(required[1]);
+  return names.filter((name) => /^[A-Za-z_$][\w$]*$/.test(name));
+}
+
 function sliceLines(source: string, range: { startLine: number; endLine: number }): string {
   const lines = source.split("\n");
   return lines.slice(Math.max(0, range.startLine - 1), range.endLine).join("\n");

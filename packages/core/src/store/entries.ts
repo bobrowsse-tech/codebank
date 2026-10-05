@@ -40,6 +40,15 @@ export async function saveEntry(
   files: SourceFile[],
   options: { similarSlug?: string; similarScore?: number; mode?: "create" | "variant" | "replace" } = {},
 ): Promise<SaveOutcome> {
+  return withLock(bankPaths(home).lock, () => saveEntryHeld(home, draft, files, options));
+}
+
+export function saveEntryHeld(
+  home: string,
+  draft: SaveDraft,
+  files: SourceFile[],
+  options: { similarSlug?: string; similarScore?: number; mode?: "create" | "variant" | "replace" } = {},
+): SaveOutcome {
   logStage("deposit", "in", { slug: draft.slug, files: files.map((file) => file.relPath) });
   const fileProblems = problemsForFiles(files);
   if (fileProblems.length > 0) return { ok: false, reason: "invalid", problems: fileProblems };
@@ -89,22 +98,20 @@ export async function saveEntry(
   const problems = problemsForEntry(entry);
   if (problems.length > 0) return { ok: false, reason: "invalid", problems };
 
-  await withLock(bankPaths(home).lock, () => {
-    const dir = path.join(bankPaths(home).entries, entry.slug);
-    if (existing) {
-      const versionDir = path.join(dir, "versions", String(existing.version));
-      fs.mkdirSync(versionDir, { recursive: true });
-      atomicWriteJson(path.join(versionDir, "entry.json"), existing);
-    }
-    fs.mkdirSync(dir, { recursive: true });
-    const codeDir = path.join(dir, "code");
-    fs.rmSync(codeDir, { recursive: true, force: true });
-    for (const file of files) {
-      atomicWrite(resolveInside(codeDir, file.relPath), file.content);
-    }
-    atomicWrite(path.join(dir, "card.md"), cardMarkdown(entry));
-    atomicWriteJson(path.join(dir, "entry.json"), entry);
-  });
+  const dir = path.join(bankPaths(home).entries, entry.slug);
+  if (existing) {
+    const versionDir = path.join(dir, "versions", String(existing.version));
+    fs.mkdirSync(versionDir, { recursive: true });
+    atomicWriteJson(path.join(versionDir, "entry.json"), existing);
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  const codeDir = path.join(dir, "code");
+  fs.rmSync(codeDir, { recursive: true, force: true });
+  for (const file of files) {
+    atomicWrite(resolveInside(codeDir, file.relPath), file.content);
+  }
+  atomicWrite(path.join(dir, "card.md"), cardMarkdown(entry));
+  atomicWriteJson(path.join(dir, "entry.json"), entry);
   logStage("deposit", "out", { slug: entry.slug, version: entry.version, files: files.length });
   return { ok: true, entry };
 }

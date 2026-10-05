@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { appendUsage, describeRepo, readEntryFiles, searchBank } from "../../core/src/index.ts";
+import { appendUsage, describeRepo, readCandidate, readEntryFiles, searchBank } from "../../core/src/index.ts";
 import { insertSlug } from "./insert.ts";
 
 const scheme = "codebank-preview";
@@ -26,6 +26,18 @@ export async function previewEntry(home: string, slug: string): Promise<void> {
   const files = readEntryFiles(home, slug);
   provider.set(slug, files.map((file) => `// ${file.relPath}\n${file.content}`).join("\n\n"));
   const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(`${scheme}:/${slug}`));
+  await vscode.window.showTextDocument(doc, { preview: true, preserveFocus: true, viewColumn: vscode.ViewColumn.Beside });
+}
+
+export async function previewCandidate(home: string, id: string): Promise<void> {
+  ensurePreview();
+  const candidate = readCandidate(home, id);
+  if (!candidate) return;
+  const sources = candidate.sources.map((source) => `${source.repoName} ${source.relPath}`).join("\n") || "no source repos";
+  const header = [`score ${candidate.score.toFixed(2)}`, candidate.reasons.join("; ") || candidate.proposedBy, sources].join("\n");
+  const body = candidate.files.map((file) => `// ${file.relPath}\n${file.content}`).join("\n\n");
+  provider.set(`candidate-${id}`, `${header}\n\n${body}`);
+  const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(`${scheme}:/candidate-${id}`));
   await vscode.window.showTextDocument(doc, { preview: true, preserveFocus: true, viewColumn: vscode.ViewColumn.Beside });
 }
 

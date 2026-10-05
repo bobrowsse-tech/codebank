@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -16,12 +17,20 @@ import {
   readEntryFiles,
   resolveHome,
   resolveOwnership,
+  listCandidates,
+  mine,
+  proposeCandidate,
   retireEntry,
   saveEntry,
   searchBank,
   toCard,
   toSlug,
+  acceptCandidate,
+  dismissCandidate,
+  loadConfig,
 } from "../../core/src/index.ts";
+import { serveMcp } from "../../mcp/src/server.ts";
+import { installSkill } from "./skill.ts";
 
 export async function run(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
@@ -39,6 +48,16 @@ export async function run(argv: string[]): Promise<number> {
         return await retire(rest);
       case "doctor":
         return doctor(rest);
+      case "mine":
+        return await mineCommand(rest);
+      case "inbox":
+        return await inboxCommand(rest);
+      case "propose":
+        return await proposeCommand(rest);
+      case "mcp":
+        return await serveMcp(ensureAndHome());
+      case "skill":
+        return skillCommand(rest);
       default:
         printHelp();
         return command ? 1 : 0;
@@ -208,13 +227,133 @@ function parseRange(value: string): { startLine: number; endLine: number } {
   return { startLine: start, endLine: end };
 }
 
+async function mineCommand(argv: string[]): Promise<number> {
+  const { values } = parseArgs({
+    args: argv,
+    options: { roots: { type: "string" }, json: { type: "boolean" } },
+    allowPositionals: true,
+  });
+  const home = ensureAndHome();
+  const config = loadConfig(home);
+  const roots = (values.roots ? values.roots.split(",") : config.scan.roots).map(expandHome);
+  const result = await mine(home, { roots });
+  if (values.json) console.log(JSON.stringify(result, null, 2));
+  else if (result.candidates.length === 0) console.log(`Scanned ${result.files} files in ${result.repos} repos. No new candidates.`);
+  else {
+    console.log(`Scanned ${result.files} files in ${result.repos} repos in ${Math.round(result.elapsedMs)} ms.`);
+    for (const candidate of result.candidates) console.log(`${candidate.id}\t${candidate.score.toFixed(2)}\t${candidate.draft.title}`);
+  }
+  return 0;
+}
+
+async function inboxCommand(argv: string[]): Promise<number> {
+  const { positionals } = parseArgs({ args: argv, options: {}, allowPositionals: true });
+  const [action, id] = positionals;
+  const home = ensureAndHome();
+  if (!action || action === "list") {
+    const candidates = listCandidates(home);
+    if (candidates.length === 0) console.log("The inbox is empty. Run codebank mine or ask an agent to propose one.");
+    else for (const candidate of candidates) console.log(`${candidate.id}\t${candidate.proposedBy}\t${candidate.draft.title}`);
+    return 0;
+  }
+  if (!id) {
+    console.error("Usage: codebank inbox list | accept <id> | dismiss <id>");
+    return 1;
+  }
+  if (action === "dismiss") {
+    if (!(await dismissCandidate(home, id))) {
+      console.error(`No candidate named ${id}.`);
+      return 2;
+    }
+    console.log(`Dismissed ${id}.`);
+    return 0;
+  }
+  if (action === "accept") {
+    const outcome = await acceptCandidate(home, id);
+    if (!outcome.ok) {
+      console.error(outcome.reason === "missing" ? `No candidate named ${id}.` : `Not accepted: ${outcome.reason}.`);
+      return outcome.reason === "missing" ? 2 : 1;
+    }
+    console.log(`Accepted ${outcome.entry.slug}.`);
+    return 0;
+  }
+  console.error("Usage: codebank inbox list | accept <id> | dismiss <id>");
+  return 1;
+}
+
+async function proposeCommand(argv: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    options: {
+      title: { type: "string" },
+      intent: { type: "string" },
+      "when-not": { type: "string" },
+      tags: { type: "string" },
+      files: { type: "string", multiple: true },
+    },
+    allowPositionals: true,
+  });
+  const listed = [...(values.files ?? []), ...positionals];
+  if (!values.title || !values.intent || listed.length === 0) {
+    console.error("Usage: codebank propose --title <title> --intent <intent> --files a.ts b.ts");
+    return 1;
+  }
+  const files = listed.map((file) => {
+    const abs = path.resolve(file);
+    return { relPath: path.relative(process.cwd(), abs).split(path.sep).join("/"), content: fs.readFileSync(abs, "utf8") };
+  });
+  const home = ensureAndHome();
+  const outcome = await proposeCandidate(home, {
+    title: values.title,
+    intent: values.intent,
+    whenNot: values["when-not"],
+    tags: (values.tags ?? "").split(",").map((tag) => tag.trim()).filter(Boolean),
+    files,
+  });
+  if (!outcome.ok) {
+    console.error(outcome.reason);
+    return 1;
+  }
+  console.log(`Proposed ${outcome.candidate.id}. It stays in the inbox until you accept it.`);
+  return 0;
+}
+
+function skillCommand(argv: string[]): number {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    options: { target: { type: "string" }, "agents-md": { type: "boolean" } },
+    allowPositionals: true,
+  });
+  if (positionals[0] !== "install") {
+    console.error("Usage: codebank skill install --target claude|copilot|agents [--agents-md]");
+    return 1;
+  }
+  const target = values.target;
+  if (target !== "claude" && target !== "copilot" && target !== "agents") {
+    console.error("Target must be claude, copilot, or agents.");
+    return 1;
+  }
+  const destination = installSkill({ target, agentsMd: values["agents-md"] });
+  console.log(`Installed the skill at ${destination}.`);
+  return 0;
+}
+
+function expandHome(root: string): string {
+  return root.replace(/^~(?=$|\/)/, os.homedir());
+}
+
 function printHelp(): void {
   console.log(`codebank search <query> [--limit n] [--json]
 codebank get <slug> [--out dir]
 codebank add <file> --range 10:40 --title <title>
+codebank mine [--roots a,b] [--json]
+codebank inbox list | accept <id> | dismiss <id>
+codebank propose --title <title> --intent <intent> --files a.ts b.ts
 codebank list
 codebank retire <slug>
-codebank doctor [--purge-usage]`);
+codebank doctor [--purge-usage]
+codebank mcp
+codebank skill install --target claude|copilot|agents [--agents-md]`);
 }
 
 if (process.argv[1]?.endsWith(`${path.sep}cli.js`)) {

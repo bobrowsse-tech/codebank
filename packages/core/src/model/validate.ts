@@ -3,6 +3,12 @@ import type { BankConfig, Candidate, Entry, Language, Origin, SourceFile } from 
 import { SchemaError } from "./types";
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,47}$/;
+const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+const PACKAGE_RANGE = /^(?:\*|(?:[\^~]|>=|<=|>|<)?(?:\d+(?:\.\d+){0,2}(?:\.x)?|\d+\.x(?:\.x)?)(?:-[0-9A-Za-z.-]+)?)$/;
+
+export function isPackageDep(dep: { name: string; range: string }): boolean {
+  return PACKAGE_NAME.test(dep.name) && PACKAGE_RANGE.test(dep.range);
+}
 const LANGUAGES = new Set<Language>(["ts", "tsx", "js", "jsx", "css", "scss", "other"]);
 
 export function requireSchema(value: unknown, label: string): { schema: number } {
@@ -30,6 +36,16 @@ export function toSlug(title: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, tuning.limits.slug);
   return isSlug(slug) ? slug : "entry";
+}
+
+export function freeSlug(base: string, taken: Set<string>): string {
+  if (!taken.has(base)) return base;
+  for (let n = 2; n < 50; n += 1) {
+    const suffix = `-${n}`;
+    const candidate = `${base.slice(0, tuning.limits.slug - suffix.length)}${suffix}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return base;
 }
 
 export function problemsForEntry(entry: Entry): string[] {
@@ -60,7 +76,25 @@ export function problemsForOrigin(origin: Origin): string[] {
 }
 
 export function problemsForFiles(files: SourceFile[]): string[] {
-  return files.flatMap((file) => (safeRel(file.relPath) ? [] : [`rejected path ${file.relPath}`]));
+  const seen = new Set<string>();
+  const problems: string[] = [];
+  for (const file of files) {
+    if (!safeRel(file.relPath)) {
+      problems.push(`rejected path ${file.relPath}`);
+      continue;
+    }
+    const destination = file.relPath
+      .split(/[\\/]/)
+      .filter((part) => part !== "" && part !== ".")
+      .join("/");
+    if (!destination) {
+      problems.push(`rejected path ${file.relPath}`);
+      continue;
+    }
+    if (seen.has(destination)) problems.push(`duplicate path ${destination}`);
+    seen.add(destination);
+  }
+  return problems;
 }
 
 export function problemsForCandidate(candidate: Candidate): string[] {

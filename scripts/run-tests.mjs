@@ -3,6 +3,7 @@ import { build } from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
 
+fs.rmSync("dist-tests", { recursive: true, force: true });
 const entryPoints = walk("packages").filter((file) => file.endsWith(".test.ts"));
 await build({
   entryPoints,

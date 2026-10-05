@@ -31,6 +31,7 @@ interface StoredDoc {
 export interface SearchOptions {
   targetOrg?: string;
   language?: string;
+  status?: Entry["status"];
 }
 
 interface IndexFile {
@@ -51,7 +52,7 @@ export function searchScored(home: string, query: string, limit: number, options
   logStage("search", "in", { query, limit });
   const index = loadIndex(home);
   const tokens = tokenize(query);
-  const active = index.docs.filter((doc) => doc.status !== "retired" && visible(doc, options));
+  const active = index.docs.filter((doc) => (options.status ? doc.status === options.status : doc.status !== "retired") && visible(doc, options));
   const documents: Bm25Document[] = active.map((doc) => ({ id: doc.slug, fields: doc.fields }));
   const raw = scoreBm25(documents, tokens);
   const bestRaw = Math.max(0, ...raw.values());
