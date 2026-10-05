@@ -67,9 +67,10 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(bankHome()));
     }),
     vscode.commands.registerCommand("codebank.mine", () => scanFolders(bankHome, refreshInbox)),
-    vscode.commands.registerCommand("codebank.reviewUpdate", async (slug?: string, relPath?: string, repoId?: string) => {
-      if (!slug || !relPath || !repoId) return;
-      await reviewUpdate(bankHome(), slug, relPath, repoId);
+    vscode.commands.registerCommand("codebank.reviewUpdate", async (slug?: unknown, relPath?: unknown, repoId?: unknown) => {
+      const target = updateTarget(slug, relPath, repoId);
+      if (!target) return;
+      await reviewUpdate(bankHome(), target.slug, target.relPath, target.repoId);
       updates.refresh();
       bank.refresh();
     }),
@@ -132,6 +133,19 @@ export function activate(context: vscode.ExtensionContext): void {
   inboxWatcher.onDidCreate(refreshInbox);
   inboxWatcher.onDidDelete(refreshInbox);
   context.subscriptions.push(watcher, inboxWatcher);
+}
+
+function updateTarget(slug?: unknown, relPath?: unknown, repoId?: unknown): { slug: string; relPath: string; repoId: string } | undefined {
+  if (typeof slug === "string" && typeof relPath === "string" && typeof repoId === "string" && slug && relPath && repoId) {
+    return { slug, relPath, repoId };
+  }
+  if (!slug || typeof slug !== "object") return undefined;
+  const args = (slug as { command?: { arguments?: unknown[] } }).command?.arguments ?? [];
+  const [id, file, repo] = args;
+  if (typeof id === "string" && typeof file === "string" && typeof repo === "string" && id && file && repo) {
+    return { slug: id, relPath: file, repoId: repo };
+  }
+  return undefined;
 }
 
 function treeId(item: unknown): string | undefined {

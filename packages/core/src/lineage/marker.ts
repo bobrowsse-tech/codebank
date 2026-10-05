@@ -23,6 +23,16 @@ export function parseMarkers(source: string): ParsedMarker[] {
   return found;
 }
 
+export function markerBody(source: string, slug: string): string | undefined {
+  const marker = parseMarkers(source).find((item) => item.slug === slug);
+  if (!marker) return undefined;
+  const bodyStart = marker.end < source.length && source[marker.end] === "\n" ? marker.end + 1 : marker.end;
+  const endAt = source.indexOf("@codebank-end", bodyStart);
+  if (endAt === -1) return source.slice(bodyStart);
+  const lineStart = source.lastIndexOf("\n", endAt);
+  return source.slice(bodyStart, lineStart === -1 ? bodyStart : lineStart + 1);
+}
+
 export function stripMarkers(source: string): string {
   return source
     .split("\n")

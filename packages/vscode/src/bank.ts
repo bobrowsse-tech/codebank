@@ -76,8 +76,10 @@ export class UpdatesView implements vscode.TreeDataProvider<BankNode> {
     const notices = await workspaceUpdates(this.home());
     if (notices.length === 0) return [new BankNode("Insert an entry to track updates.", "empty")];
     return notices.map((notice) => {
-      const node = new BankNode(`${notice.title} v${notice.toVersion}`, "update", notice.slug);
-      node.description = `${notice.relPath} · v${notice.fromVersion}`;
+      const stale = notice.kind === "stale";
+      const node = new BankNode(stale ? `${notice.title} · stale` : `${notice.title} v${notice.toVersion}`, "update", notice.slug);
+      node.description = stale ? `${notice.relPath} · ${notice.staleReason ?? "dependency moved"}` : `${notice.relPath} · v${notice.fromVersion}`;
+      if (stale) node.iconPath = new vscode.ThemeIcon("warning");
       node.command = { command: "codebank.reviewUpdate", title: "Review Update", arguments: [notice.slug, notice.relPath, notice.repoId] };
       return node;
     });

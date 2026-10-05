@@ -15,11 +15,11 @@ export function planUpdate(base: string, local: string, upstream: string): Updat
   return { kind: "conflict" };
 }
 
-export function updateReplacement(local: string, nextBody: string, language: Language, slug: string, version: number, hash: string): { start: number; end: number; text: string } {
+export function updateReplacement(local: string, nextBody: string, language: Language, slug: string, version: number, hash: string, filePath?: string): { start: number; end: number; text: string } {
   const marker = parseMarkers(local).find((item) => item.slug === slug);
-  const startLine = markerLine(language, slug, version, hash);
+  const startLine = markerLine(language, slug, version, hash, filePath);
   const endAt = marker ? local.indexOf("@codebank-end", marker.end) : -1;
-  const text = endAt === -1 ? `${startLine}\n${nextBody}` : `${startLine}\n${nextBody}\n${endMarkerLine(language)}`;
+  const text = endAt === -1 ? `${startLine}\n${nextBody}` : `${startLine}\n${nextBody}\n${endMarkerLine(language, filePath)}`;
   if (!marker) return { start: 0, end: local.length, text };
   const end = endAt === -1 ? local.length : lineEnd(local, endAt);
   return { start: marker.start, end, text };

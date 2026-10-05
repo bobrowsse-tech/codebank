@@ -4,11 +4,11 @@ import { contentHash } from "../closure/hash";
 import { logStage } from "../log";
 import type { BankConfig, Entry, Link, SourceFile } from "../model/types";
 import { requireSchema } from "../model/validate";
+import { markerBody, parseMarkers } from "../lineage/marker";
 import { atomicWriteJson, readJson } from "./atomic";
 import { readEntry, saveEntry, type SaveOutcome } from "./entries";
 import { withLock } from "./lock";
 import { assertSafeRelPath, bankPaths } from "./paths";
-import { parseMarkers, stripMarkers } from "../lineage/marker";
 
 const repoIdPattern = /^[a-f0-9]{40}$/;
 
@@ -21,7 +21,7 @@ export function lineageMode(config: BankConfig, ownership: Entry["ownership"], s
   if (setting === "external") return "external";
   if (setting === "marker") return "marker";
   if (config.lineage.mode === "external") return "external";
-  if (ownership !== "personal" && config.lineage.externalForClient) return "external";
+  if (ownership === "client" && config.lineage.externalForClient) return "external";
   return "marker";
 }
 
@@ -47,6 +47,7 @@ export function listAllLinks(home: string): Link[] {
 
 export async function upsertLink(home: string, link: Link): Promise<void> {
   assertSafeRelPath(link.relPath);
+  if (link.sourceRelPath) assertSafeRelPath(link.sourceRelPath);
   await withLock(bankPaths(home).lock, () => {
     const file = lineageFile(home, link.repoId);
     if (!file) throw new Error("A repository id must be 40 hex characters.");
@@ -65,6 +66,16 @@ export interface UpdateNotice {
   repoId: string;
   fromVersion: number;
   toVersion: number;
+  kind: "update" | "stale";
+  staleReason?: string;
+}
+
+export function linkedSource(entryFile: string, link?: { sourceRelPath?: string }): string {
+  return link?.sourceRelPath || entryFile;
+}
+
+export function linkedContentHash(sourceRelPath: string, body: string): string {
+  return contentHash([{ relPath: sourceRelPath, content: body }]);
 }
 
 export function findUpdates(home: string, repoId: string, files: { relPath: string; content: string }[]): UpdateNotice[] {
@@ -72,11 +83,23 @@ export function findUpdates(home: string, repoId: string, files: { relPath: stri
   const seen = new Set<string>();
   const add = (slug: string, relPath: string, fromVersion: number) => {
     const entry = readEntry(home, slug);
-    if (!entry || entry.version <= fromVersion) return;
+    if (!entry || entry.status === "retired") return;
+    const behind = entry.version > fromVersion;
+    const stale = entry.status === "stale";
+    if (!behind && !stale) return;
     const key = `${slug}:${relPath}`;
     if (seen.has(key)) return;
     seen.add(key);
-    notices.push({ slug, title: entry.title, relPath, repoId, fromVersion, toVersion: entry.version });
+    notices.push({
+      slug,
+      title: entry.title,
+      relPath,
+      repoId,
+      fromVersion,
+      toVersion: entry.version,
+      kind: behind ? "update" : "stale",
+      staleReason: stale ? entry.staleReason : undefined,
+    });
   };
   for (const file of files) {
     for (const marker of parseMarkers(file.content)) add(marker.slug, file.relPath, marker.version);
@@ -92,7 +115,7 @@ export async function promoteEntry(
   home: string,
   slug: string,
   files: SourceFile[],
-  link?: { repoId: string; relPath: string; mode?: Link["mode"] },
+  link?: { repoId: string; relPath: string; mode?: Link["mode"]; sourceRelPath?: string },
 ): Promise<SaveOutcome> {
   const current = readEntry(home, slug);
   if (!current) return { ok: false, reason: "invalid", problems: [`No entry named ${slug}.`] };
@@ -116,14 +139,18 @@ export async function promoteEntry(
     { mode: "replace" },
   );
   if (outcome.ok && link) {
+    const sourceRelPath = linkedSource(outcome.entry.entryFile, link);
+    const body = files.find((file) => file.relPath === sourceRelPath)?.content ?? "";
+    const hash = linkedContentHash(sourceRelPath, body);
     await upsertLink(home, {
       slug,
       version: outcome.entry.version,
-      baseHash: outcome.entry.contentHash,
+      baseHash: hash,
       repoId: link.repoId,
       relPath: link.relPath,
+      sourceRelPath,
       mode: link.mode ?? "marker",
-      localHash: outcome.entry.contentHash,
+      localHash: hash,
       insertedAt: new Date().toISOString(),
     });
   }
@@ -140,7 +167,9 @@ export async function noteLocalEdit(
   if (!link) return { prompt: false };
   const entry = readEntry(home, link.slug);
   if (!entry) return { prompt: false };
-  const hash = contentHash([{ relPath: entry.entryFile, content: stripMarkers(content) }]);
+  const sourceRelPath = linkedSource(entry.entryFile, link);
+  const body = markerBody(content, link.slug) ?? content;
+  const hash = linkedContentHash(sourceRelPath, body);
   if (hash === link.localHash) return { prompt: false };
   const prompt = hash !== link.baseHash;
   await upsertLink(home, { ...link, localHash: hash });
@@ -188,6 +217,35 @@ export async function markDrift(home: string, repos: { repoId: string; packageJs
   return stale;
 }
 
+export async function rememberRepo(home: string, repoId: string, root: string): Promise<void> {
+  if (!repoIdPattern.test(repoId) || !root) return;
+  await withLock(bankPaths(home).lock, () => {
+    const current = readRepoRoots(home);
+    current[repoId] = root;
+    atomicWriteJson(repoFile(home), { schema: 1, repos: current });
+  });
+}
+
+export function rememberedRepos(home: string): { repoId: string; packageJson: string }[] {
+  return Object.entries(readRepoRoots(home)).map(([repoId, root]) => ({ repoId, packageJson: path.join(root, "package.json") }));
+}
+
+function readRepoRoots(home: string): Record<string, string> {
+  const file = repoFile(home);
+  if (!fs.existsSync(file)) return {};
+  try {
+    const raw = readJson<{ schema: 1; repos?: Record<string, string> }>(file);
+    requireSchema(raw, file);
+    return Object.fromEntries(Object.entries(raw.repos ?? {}).filter(([repoId, root]) => repoIdPattern.test(repoId) && typeof root === "string" && root));
+  } catch {
+    return {};
+  }
+}
+
+function repoFile(home: string): string {
+  return path.join(bankPaths(home).lineage, "repos.json");
+}
+
 function lineageFile(home: string, repoId: string): string | undefined {
   if (!repoIdPattern.test(repoId)) return undefined;
   return path.join(bankPaths(home).lineage, `${repoId}.json`);
@@ -195,8 +253,12 @@ function lineageFile(home: string, repoId: string): string | undefined {
 
 function readInstalled(packageJson: string): Map<string, string> {
   if (!fs.existsSync(packageJson)) return new Map();
-  const json = JSON.parse(fs.readFileSync(packageJson, "utf8")) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
-  return new Map(Object.entries({ ...json.devDependencies, ...json.dependencies }));
+  try {
+    const json = JSON.parse(fs.readFileSync(packageJson, "utf8")) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+    return new Map(Object.entries({ ...json.devDependencies, ...json.dependencies }));
+  } catch {
+    return new Map();
+  }
 }
 
 function majorNumber(range: string): number {

@@ -1,6 +1,6 @@
 import path from "node:path";
 import * as vscode from "vscode";
-import { appendUsageLocked, applyInsert, describeRepo, lineageMode, loadConfig, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, searchBank, upsertLink } from "../../core/src/index.ts";
+import { appendUsageLocked, applyInsert, describeRepo, lineageMode, linkedContentHash, loadConfig, markerBody, noteAccepted, planInsert, readEntry, readEntryFiles, recordUse, rememberRepo, searchBank, upsertLink } from "../../core/src/index.ts";
 import { languageFromFile } from "../../core/src/closure/extract.ts";
 
 function lineageSetting(): string | undefined {
@@ -101,23 +101,31 @@ export async function insertSlug(home: string, slug: string, repoId?: string, pr
       }
     }
   }
-  const locations = mode.mode === "cursor" && editor
-    ? [path.relative(root.fsPath, editor.document.uri.fsPath)]
-    : plan.files.map((file) => [insertDir, slug, file.relPath].join("/"));
-  for (const rel of locations) {
-    const relPath = rel.split(path.sep).join("/");
+  const copies = mode.mode === "cursor" && editor
+    ? [{ relPath: path.relative(root.fsPath, editor.document.uri.fsPath), sourceRelPath: entry.entryFile, written: plan.files[0]?.content ?? "" }]
+    : plan.files.map((file) => ({
+        relPath: [insertDir, slug, file.relPath].join("/"),
+        sourceRelPath: file.relPath,
+        written: file.content,
+      }));
+  for (const copy of copies) {
+    const relPath = copy.relPath.split(path.sep).join("/");
     if (!relPath || relPath.split("/").includes("..")) continue;
+    const body = lineage === "external" ? copy.written : (markerBody(copy.written, entry.slug) ?? copy.written);
+    const hash = linkedContentHash(copy.sourceRelPath, body);
     await upsertLink(home, {
       slug: entry.slug,
       version: entry.version,
-      baseHash: entry.contentHash,
+      baseHash: hash,
       repoId: repo.repoId,
       relPath,
+      sourceRelPath: copy.sourceRelPath,
       mode: lineage,
-      localHash: entry.contentHash,
+      localHash: hash,
       insertedAt: new Date().toISOString(),
     });
   }
+  await rememberRepo(home, repo.repoId, repo.root);
   await recordUse(home, slug, plan.verbatim);
   if (repoId) await noteAccepted(home, repoId, slug);
   await appendUsageLocked(home, { t: new Date().toISOString(), kind: "inserted", surface: repoId ? "codelens" : "quickpick", slug, verbatim: plan.verbatim });

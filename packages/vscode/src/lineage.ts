@@ -2,10 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import * as vscode from "vscode";
 import {
-  contentHash,
   describeRepo,
   findUpdates,
+  linkedContentHash,
+  linkedSource,
   markDrift,
+  markerBody,
   noteLocalEdit,
   parseMarkers,
   planUpdate,
@@ -14,7 +16,8 @@ import {
   readEntryFiles,
   readLinks,
   readVersionFiles,
-  stripMarkers,
+  rememberedRepos,
+  rememberRepo,
   updateReplacement,
   upsertLink,
   type UpdateNotice,
@@ -58,26 +61,32 @@ export async function reviewUpdate(home: string, slug: string, relPath: string, 
     return;
   }
   const stored = readLinks(home, repoId).find((link) => link.slug === slug && link.relPath === relPath);
+  const sourceRelPath = linkedSource(entry.entryFile, stored);
   const version = parseMarkers(local).find((marker) => marker.slug === slug)?.version ?? stored?.version ?? 1;
-  const base = readVersionFiles(home, slug, version).find((file) => file.relPath === entry.entryFile)?.content ?? "";
-  const upstream = readEntryFiles(home, slug).find((file) => file.relPath === entry.entryFile)?.content ?? "";
-  const plan = planUpdate(base, stripMarkers(local), upstream);
-  pending.set(keyOf(slug, version), upstream);
+  if (entry.status === "stale" && version >= entry.version) {
+    void vscode.window.showInformationMessage(staleMessage(entry.title, entry.staleReason));
+    return;
+  }
+  const base = readVersionFiles(home, slug, version).find((file) => file.relPath === sourceRelPath)?.content ?? "";
+  const upstream = readEntryFiles(home, slug).find((file) => file.relPath === sourceRelPath)?.content ?? "";
+  const localBody = markerBody(local, slug) ?? local;
+  const plan = planUpdate(base, localBody, upstream);
+  pending.set(keyOf(slug, entry.version), upstream);
   const upstreamUri = vscode.Uri.parse(`codebank-update:${slug}/v${entry.version}`);
   await vscode.commands.executeCommand("vscode.diff", uri, upstreamUri, `${entry.title}: local ↔ v${entry.version}`);
   if (plan.kind === "conflict") {
     const choice = await vscode.window.showWarningMessage(`Both copies of ${entry.title} changed. Nothing was applied.`, "Promote mine", "Keep mine");
-    if (choice === "Promote mine") await promoteCopy(home, entry.slug, entry.entryFile, stripMarkers(local), repoId, relPath, stored?.mode);
+    if (choice === "Promote mine") await promoteCopy(home, entry.slug, sourceRelPath, localBody, repoId, relPath, stored?.mode);
     return;
   }
   if (plan.kind === "promote") {
     const choice = await vscode.window.showInformationMessage(`You changed ${entry.title} and the bank copy is unchanged.`, "Promote mine", "Keep mine");
-    if (choice === "Promote mine") await promoteCopy(home, entry.slug, entry.entryFile, stripMarkers(local), repoId, relPath, stored?.mode);
+    if (choice === "Promote mine") await promoteCopy(home, entry.slug, sourceRelPath, localBody, repoId, relPath, stored?.mode);
     return;
   }
   const choice = await vscode.window.showInformationMessage(`${entry.title} v${entry.version} is available.`, "Take update", "Keep mine");
   if (choice !== "Take update") return;
-  const replacement = updateReplacement(local, plan.result, entry.language, entry.slug, entry.version, entry.contentHash);
+  const replacement = updateReplacement(local, plan.result, entry.language, entry.slug, entry.version, entry.contentHash, sourceRelPath);
   const document = await vscode.workspace.openTextDocument(uri);
   const edit = new vscode.WorkspaceEdit();
   edit.replace(uri, new vscode.Range(document.positionAt(replacement.start), document.positionAt(replacement.end)), replacement.text);
@@ -85,14 +94,17 @@ export async function reviewUpdate(home: string, slug: string, relPath: string, 
     void vscode.window.showWarningMessage("The editor rejected the update.");
     return;
   }
+  const nextBody = markerBody(replacement.text, entry.slug) ?? plan.result;
+  const hash = linkedContentHash(sourceRelPath, nextBody);
   await upsertLink(home, {
     slug: entry.slug,
     version: entry.version,
-    baseHash: entry.contentHash,
+    baseHash: hash,
     repoId,
     relPath,
+    sourceRelPath,
     mode: stored?.mode ?? "marker",
-    localHash: contentHash([{ relPath: entry.entryFile, content: stripMarkers(replacement.text) }]),
+    localHash: hash,
     insertedAt: stored?.insertedAt ?? new Date().toISOString(),
   });
 }
@@ -109,14 +121,17 @@ export async function noteSavedCopy(home: string, document: vscode.TextDocument)
   const entry = readEntry(home, result.slug);
   if (!entry) return;
   const stored = readLinks(home, repo.repoId).find((link) => link.relPath === relPath);
-  await promoteCopy(home, result.slug, entry.entryFile, stripMarkers(document.getText()), repo.repoId, relPath, stored?.mode);
+  const sourceRelPath = linkedSource(entry.entryFile, stored);
+  const body = markerBody(document.getText(), result.slug) ?? document.getText();
+  await promoteCopy(home, result.slug, sourceRelPath, body, repo.repoId, relPath, stored?.mode);
 }
 
 export async function noteWorkspaceDrift(home: string): Promise<void> {
-  const repos = (vscode.workspace.workspaceFolders ?? []).map((folder) => ({
-    repoId: describeRepo(folder.uri.fsPath).repoId,
-    packageJson: vscode.Uri.joinPath(folder.uri, "package.json").fsPath,
-  }));
+  for (const folder of vscode.workspace.workspaceFolders ?? []) {
+    const repo = describeRepo(folder.uri.fsPath);
+    await rememberRepo(home, repo.repoId, repo.root);
+  }
+  const repos = rememberedRepos(home);
   if (repos.length === 0) return;
   await markDrift(home, repos);
 }
@@ -129,6 +144,10 @@ function keyOf(slug: string, version: number): string {
   return `${slug}/v${version}`;
 }
 
+function staleMessage(title: string, reason: string | undefined): string {
+  return reason ? `${title} is stale because ${reason} moved ahead in other repositories.` : `${title} is stale.`;
+}
+
 async function promoteCopy(
   home: string,
   slug: string,
@@ -139,7 +158,7 @@ async function promoteCopy(
   mode: "marker" | "external" | undefined,
 ): Promise<void> {
   const files = readEntryFiles(home, slug).map((file) => (file.relPath === entryFile ? { relPath: file.relPath, content } : file));
-  const outcome = await promoteEntry(home, slug, files.length > 0 ? files : [{ relPath: entryFile, content }], { repoId, relPath, mode });
+  const outcome = await promoteEntry(home, slug, files.length > 0 ? files : [{ relPath: entryFile, content }], { repoId, relPath, mode, sourceRelPath: entryFile });
   if (!outcome.ok) void vscode.window.showWarningMessage("The change was not promoted.");
   else void vscode.window.showInformationMessage(`Promoted ${slug} to v${outcome.entry.version}.`);
 }

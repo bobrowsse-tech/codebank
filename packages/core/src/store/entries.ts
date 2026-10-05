@@ -104,7 +104,11 @@ export function saveEntryHeld(
     const versionDir = path.join(dir, "versions", String(existing.version));
     fs.mkdirSync(versionDir, { recursive: true });
     atomicWriteJson(path.join(versionDir, "entry.json"), existing);
-    if (fs.existsSync(codeDir)) fs.cpSync(codeDir, path.join(versionDir, "code"), { recursive: true });
+    if (fs.existsSync(codeDir)) {
+      for (const file of readCodeDir(codeDir)) {
+        atomicWrite(resolveInside(path.join(versionDir, "code"), file.relPath), file.content);
+      }
+    }
   }
   fs.mkdirSync(dir, { recursive: true });
   fs.rmSync(codeDir, { recursive: true, force: true });
