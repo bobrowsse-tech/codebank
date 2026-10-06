@@ -1,6 +1,6 @@
 {
   "name": "@bobrowsse-tech/codebank",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Bank reusable code locally and recall it from the terminal.",
   "license": "MIT",
   "author": "Bob Rowsse Walakira <hello@bobrowsse.com>",
