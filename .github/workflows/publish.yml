@@ -4,6 +4,8 @@ name: Publish
 # attach the VSIX and publish outward. Marketplace and Open VSX need
 # repository secrets VSCE_PAT and OVSX_PAT. NPM_TOKEN publishes the CLI only
 # when its package name is scoped; the unscoped name "codebank" is taken.
+# A manual run publishes Open VSX and npm only. Version 0.1.0 is already on
+# the Marketplace, so that step stays on the release event.
 on:
   release:
     types: [published]
@@ -88,7 +90,7 @@ jobs:
           npx --yes @vscode/vsce publish --packagePath "$vsix" -p "$VSCE_PAT"
 
       - name: Publish to Open VSX
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
@@ -100,7 +102,7 @@ jobs:
           npx --yes ovsx publish "$vsix" -p "$OVSX_PAT"
 
       - name: Publish the scoped CLI to npm
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
