@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { acceptCandidate, dismissCandidate, ensureHome, listCandidates, loadIndex, resolveHome, retireEntry, setLogger } from "../../core/src/index.ts";
+import { acceptCandidate, dismissCandidate, ensureHome, listCandidates, loadIndex, logStage, resolveHome, retireEntry, setLogger } from "../../core/src/index.ts";
 import { BankView, InboxView, UpdatesView } from "./bank.ts";
 import { depositSelection } from "./deposit.ts";
 import { insertCommand, insertSlug } from "./insert.ts";
@@ -7,6 +7,7 @@ import { previewCandidate, searchCommand } from "./search.ts";
 import { registerRecall } from "./recall.ts";
 import { noteSavedCopy, noteWorkspaceDrift, reviewUpdate, updateEvents, updateText } from "./lineage.ts";
 import { scanFolders } from "./scan.ts";
+import { ACTIVATION_IDLE_MS, afterActivation, idleAfterActivation, nextAcceptedCount, walkthroughAcceptsComplete } from "./startup.ts";
 import { registerTools } from "./tools.ts";
 
 export function bankHome(): string {
@@ -14,20 +15,21 @@ export function bankHome(): string {
   return resolveHome(configured || undefined);
 }
 
-export function activate(context: vscode.ExtensionContext): void {
+const ACCEPTED_KEY = "codebank.acceptedCount";
+
+export const activation: { elapsedMs: number; accepted: number; complete: boolean } = { elapsedMs: 0, accepted: 0, complete: false };
+
+export function activate(context: vscode.ExtensionContext): typeof activation {
+  const started = Date.now();
   const output = vscode.window.createOutputChannel("Codebank", { log: true });
   setLogger((stage, direction, data) => {
     output.debug(`${stage} ${direction} ${JSON.stringify(data)}`);
   });
   const home = bankHome();
   ensureHome(home);
-  setTimeout(() => {
-    try {
-      loadIndex(bankHome());
-    } catch (error) {
-      output.error(error instanceof Error ? error.message : String(error));
-    }
-  }, 0);
+  activation.accepted = context.globalState.get<number>(ACCEPTED_KEY) ?? 0;
+  activation.complete = walkthroughAcceptsComplete(activation.accepted);
+  if (activation.complete) void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
 
   const bank = new BankView(() => bankHome());
   const inbox = new InboxView(bankHome);
@@ -82,9 +84,21 @@ export function activate(context: vscode.ExtensionContext): void {
       const id = treeId(item);
       if (!id) return;
       const outcome = await acceptCandidate(bankHome(), id);
-      if (!outcome.ok) void vscode.window.showWarningMessage(outcome.reason === "missing" ? "That candidate is gone." : `Not accepted: ${outcome.reason}.`);
+      if (!outcome.ok) {
+        void vscode.window.showWarningMessage(outcome.reason === "missing" ? "That candidate is gone." : `Not accepted: ${outcome.reason}.`);
+      } else {
+        const count = nextAcceptedCount(context.globalState.get<number>(ACCEPTED_KEY) ?? 0);
+        await context.globalState.update(ACCEPTED_KEY, count);
+        activation.accepted = count;
+        activation.complete = walkthroughAcceptsComplete(count);
+        logStage("walkthrough", "out", { accepted: count, complete: activation.complete });
+        if (activation.complete) void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
+      }
       refreshInbox();
       bank.refresh();
+    }),
+    vscode.commands.registerCommand("codebank.showWalkthrough", () => {
+      void vscode.commands.executeCommand("workbench.action.openWalkthrough", "bobrowsse-tech.codebank#codebank.start", false);
     }),
     vscode.commands.registerCommand("codebank.dismiss", async (item?: unknown) => {
       const id = treeId(item);
@@ -98,21 +112,30 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(vscode.workspace.onDidSaveTextDocument((document) => {
     void noteSavedCopy(bankHome(), document).then(() => updates.refresh());
   }));
-  void noteWorkspaceDrift(bankHome()).then(() => {
-    updates.refresh();
-    bank.refresh();
-  });
 
-  refreshStatus();
-  if (!context.globalState.get<boolean>("codebank.firstScan")) {
-    void context.globalState.update("codebank.firstScan", true).then(() => {
-      scanFolders(bankHome, refreshInbox);
-    });
-  }
+  status.text = "$(archive) Codebank";
   status.command = "codebank.search";
   status.tooltip = "Search the bank";
   status.show();
   context.subscriptions.push(status);
+  afterActivation(() => {
+    const current = bankHome();
+    try {
+      loadIndex(current);
+    } catch (error) {
+      output.error(error instanceof Error ? error.message : String(error));
+    }
+    refreshStatus();
+    void noteWorkspaceDrift(current).then(() => {
+      updates.refresh();
+      bank.refresh();
+    });
+    if (!context.globalState.get<boolean>("codebank.firstScan")) {
+      void context.globalState.update("codebank.firstScan", true).then(() => {
+        scanFolders(bankHome, refreshInbox);
+      });
+    }
+  });
 
   const homeUri = vscode.Uri.file(bankHome());
   const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(homeUri, "entries/**"));
@@ -133,6 +156,10 @@ export function activate(context: vscode.ExtensionContext): void {
   inboxWatcher.onDidCreate(refreshInbox);
   inboxWatcher.onDidDelete(refreshInbox);
   context.subscriptions.push(watcher, inboxWatcher);
+  activation.elapsedMs = Date.now() - started;
+  logStage("activate", "out", { elapsedMs: activation.elapsedMs, budgetMs: ACTIVATION_IDLE_MS });
+  if (!idleAfterActivation(activation.elapsedMs)) output.warn(`Activation took ${activation.elapsedMs} ms. Idle budget is ${ACTIVATION_IDLE_MS} ms.`);
+  return activation;
 }
 
 function updateTarget(slug?: unknown, relPath?: unknown, repoId?: unknown): { slug: string; relPath: string; repoId: string } | undefined {

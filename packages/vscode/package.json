@@ -3,14 +3,29 @@
   "displayName": "Codebank",
   "publisher": "bobrowsse-tech",
   "version": "0.1.0",
-  "description": "Bank reusable code locally and recall it in any project.",
+  "description": "Bank reusable code locally and recall it in any project. No telemetry. A deposit draft is sent to the editor's language model only after you allow it.",
   "license": "MIT",
   "author": "Bob Rowsse Walakira <hello@bobrowsse.com>",
   "private": true,
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1f1f1f",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bobrowsse-tech/codebank"
+  },
+  "bugs": {
+    "url": "https://github.com/bobrowsse-tech/codebank/issues"
+  },
+  "homepage": "https://github.com/bobrowsse-tech/codebank#readme",
+  "qna": "https://github.com/bobrowsse-tech/codebank/issues",
+  "keywords": ["snippets", "reuse", "local", "codebank"],
   "engines": {
     "vscode": "^1.101.0"
   },
-  "categories": ["Other", "AI"],
+  "categories": ["Snippets", "Other", "AI"],
   "activationEvents": ["onStartupFinished", "onView:codebank.bank"],
   "main": "./dist/extension.js",
   "contributes": {
@@ -28,7 +43,8 @@
       { "command": "codebank.dismiss", "title": "Dismiss Candidate" },
       { "command": "codebank.preview", "title": "Preview" },
       { "command": "codebank.mute", "title": "Mute Suggestions Here" },
-      { "command": "codebank.reviewUpdate", "title": "Codebank: Review Update" }
+      { "command": "codebank.reviewUpdate", "title": "Codebank: Review Update" },
+      { "command": "codebank.showWalkthrough", "title": "Codebank: Open Walkthrough" }
     ],
     "keybindings": [
       { "command": "codebank.deposit", "key": "ctrl+alt+b", "mac": "cmd+alt+b", "when": "editorHasSelection" },
@@ -62,15 +78,96 @@
     "configuration": {
       "title": "Codebank",
       "properties": {
-        "codebank.home": { "type": "string", "default": "", "description": "Bank folder. Empty uses ~/.codebank." },
-        "codebank.insertDir": { "type": "string", "default": "src/codebank", "description": "Folder inside the project where an inserted entry is written." },
-        "codebank.recall.enabled": { "type": "boolean", "default": true },
-        "codebank.recall.threshold": { "type": "number", "default": 0.72, "minimum": 0, "maximum": 1 },
-        "codebank.lineage.mode": { "type": "string", "enum": ["marker", "external"], "default": "marker" },
-        "codebank.scan.roots": { "type": "array", "items": { "type": "string" }, "default": [] },
-        "codebank.scan.ignore": { "type": "array", "items": { "type": "string" }, "default": ["node_modules", ".git", "dist", "build", ".next"] }
+        "codebank.home": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Bank folder. Empty uses `~/.codebank`. Codebank does not send telemetry and does not open its own network connections. A deposit draft is sent to the editor's language model only after you allow it."
+        },
+        "codebank.insertDir": {
+          "type": "string",
+          "default": "src/codebank",
+          "markdownDescription": "Folder inside the project where an inserted entry is written. Nothing is written there until you insert."
+        },
+        "codebank.recall.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show a CodeLens suggestion when the open file looks like a banked entry."
+        },
+        "codebank.recall.threshold": {
+          "type": "number",
+          "default": 0.72,
+          "minimum": 0,
+          "maximum": 1,
+          "markdownDescription": "How close a recall suggestion must be before it is shown. `0` shows weak matches. `1` shows only a near copy."
+        },
+        "codebank.lineage.mode": {
+          "type": "string",
+          "enum": ["marker", "external"],
+          "enumDescriptions": [
+            "Write a comment marker so a later version can be found in the file.",
+            "Store the link in the bank and add no text to the file."
+          ],
+          "default": "marker",
+          "markdownDescription": "How an insert keeps its link to the bank. External mode adds no marker text."
+        },
+        "codebank.scan.roots": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "markdownDescription": "Folders to scan for reusable code. Empty uses the folders open in this window."
+        },
+        "codebank.scan.ignore": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["node_modules", ".git", "dist", "build", ".next"],
+          "markdownDescription": "Folder names a scan skips."
+        }
       }
     },
+    "walkthroughs": [
+      {
+        "id": "codebank.start",
+        "title": "Bank a snippet and use it",
+        "description": "Scan this machine, accept three candidates, and try #codebank. A first insert takes a few minutes.",
+        "steps": [
+          {
+            "id": "scan",
+            "title": "Scan this machine",
+            "description": "Codebank looks through local git repositories and leaves matches in the Inbox. The scan does not change your projects.\n[Scan this machine](command:codebank.mine)",
+            "media": { "svg": "media/icon.svg", "altText": "Codebank archive" },
+            "completionEvents": ["onCommand:codebank.mine"]
+          },
+          {
+            "id": "accept",
+            "title": "Accept three candidates",
+            "description": "Open the Inbox and accept three candidates. Each accept saves one entry in your bank. Dismiss the ones you do not want.\n[Open the Inbox](command:codebank.openInbox)",
+            "media": { "svg": "media/icon.svg", "altText": "Codebank archive" },
+            "completionEvents": ["onContext:codebank.acceptedThree"]
+          },
+          {
+            "id": "chat",
+            "title": "Try #codebank",
+            "description": "In chat, type `#codebank` and what you need, for example `#codebank filtering`. Insert the card you want. An install command, if one is needed, is typed into a terminal and not run.\n[Search the bank](command:codebank.search)",
+            "media": { "svg": "media/icon.svg", "altText": "Codebank archive" },
+            "completionEvents": ["onCommand:codebank.insert"]
+          }
+        ]
+      }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "codebank.bank",
+        "contents": "No entries yet. Scan this machine, then accept candidates from the Inbox.\n[Scan this machine](command:codebank.mine)\n[Open the walkthrough](command:codebank.showWalkthrough)"
+      },
+      {
+        "view": "codebank.inbox",
+        "contents": "The Inbox is empty. Scan this machine to find candidates. Nothing is saved until you accept one.\n[Scan this machine](command:codebank.mine)"
+      },
+      {
+        "view": "codebank.updates",
+        "contents": "No updates. Insert an entry, then a newer version shows up here."
+      }
+    ],
     "languageModelTools": [
       {
         "name": "codebank_search",
@@ -148,6 +245,6 @@
     ]
   },
   "scripts": {
-    "package": "vsce package --no-dependencies --allow-missing-repository -o ../../codebank.vsix"
+    "package": "vsce package --no-dependencies -o ../../codebank.vsix"
   }
 }

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/review-gate.mjs",
+        "matcher": "\\bgit\\b[\\s\\S]*\\b(commit|push)\\b",
+        "failClosed": true,
+        "timeout": 30
+      }
+    ]
+  }
+}

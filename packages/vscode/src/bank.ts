@@ -19,7 +19,7 @@ export class BankView implements vscode.TreeDataProvider<BankNode> {
   getChildren(element?: BankNode): BankNode[] {
     const entries = listEntries(this.home()).filter((entry) => entry.status !== "retired");
     if (!element) {
-      if (entries.length === 0) return [new BankNode("Deposit a selection to start the bank.", "empty")];
+      if (entries.length === 0) return [];
       const tags = [...new Set(entries.flatMap((entry) => (entry.tags.length > 0 ? entry.tags : ["untagged"])))].sort();
       return tags.map((tag) => new BankNode(tag, "tag"));
     }
@@ -46,7 +46,7 @@ export class InboxView implements vscode.TreeDataProvider<BankNode> {
 
   getChildren(): BankNode[] {
     const candidates = listCandidates(this.home());
-    if (candidates.length === 0) return [new BankNode("Candidates from a scan show up here.", "empty")];
+    if (candidates.length === 0) return [];
     return candidates.map((candidate) => {
       const label = candidate.proposedBy === "agent" ? `${candidate.draft.title} · agent-proposed` : candidate.draft.title;
       const node = new BankNode(label, "candidate", candidate.id);
@@ -74,7 +74,7 @@ export class UpdatesView implements vscode.TreeDataProvider<BankNode> {
 
   async getChildren(): Promise<BankNode[]> {
     const notices = await workspaceUpdates(this.home());
-    if (notices.length === 0) return [new BankNode("Insert an entry to track updates.", "empty")];
+    if (notices.length === 0) return [];
     return notices.map((notice) => {
       const stale = notice.kind === "stale";
       const node = new BankNode(stale ? `${notice.title} · stale` : `${notice.title} v${notice.toVersion}`, "update", notice.slug);
@@ -89,7 +89,7 @@ export class UpdatesView implements vscode.TreeDataProvider<BankNode> {
 class BankNode extends vscode.TreeItem {
   constructor(
     readonly labelText: string,
-    readonly kind: "tag" | "entry" | "candidate" | "empty" | "update",
+    readonly kind: "tag" | "entry" | "candidate" | "update",
     readonly slug?: string,
   ) {
     super(labelText, kind === "tag" ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None);
