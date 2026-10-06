@@ -194,5 +194,6 @@ export async function proposeCandidate(home: string, proposal: Proposal): Promis
     candidate.draft.slug = freeSlug(candidate.draft.slug, taken);
     writeCandidateHeld(home, candidate);
   });
+  logStage("propose", "out", { id: candidate.id, slug: candidate.draft.slug });
   return { ok: true, candidate };
 }

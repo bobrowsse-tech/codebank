@@ -220,6 +220,7 @@ export async function retireEntry(home: string, slug: string): Promise<boolean> 
   await withLock(bankPaths(home).lock, () => {
     atomicWriteJson(path.join(bankPaths(home).entries, slug, "entry.json"), entry);
   });
+  logStage("retire", "out", { slug });
   return true;
 }
 
