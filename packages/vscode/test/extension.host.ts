@@ -24,6 +24,7 @@ suite("Codebank", function () {
     }
     assert.equal(extension.isActive, true);
     const api = extension.exports as { elapsedMs: number; accepted: number };
+    assert.equal(typeof api.elapsedMs, "number");
     assert.ok(api.elapsedMs <= ACTIVATION_IDLE_MS, `activation took ${api.elapsedMs} ms`);
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes("codebank.deposit"));
@@ -57,9 +58,9 @@ suite("Codebank", function () {
       await vscode.commands.executeCommand("codebank.accept", proposed.candidate.id);
     }
     assert.ok(listEntries(home).length >= 3);
-    const api = extension.exports as { accepted: number };
+    const api = extension.exports as { accepted: number; complete: boolean };
     assert.equal(api.accepted, before + 3);
-    assert.ok(api.accepted >= 3);
+    assert.equal(api.complete, true);
   });
 
   test("#codebank filtering returns the banked card", async () => {

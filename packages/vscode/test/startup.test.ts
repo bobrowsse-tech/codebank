@@ -29,6 +29,7 @@ test("index work stays off the activation path and inside the idle budget", asyn
   assert.equal(walkthroughAcceptsComplete(nextAcceptedCount(0)), false);
   assert.equal(walkthroughAcceptsComplete(nextAcceptedCount(1)), false);
   assert.equal(walkthroughAcceptsComplete(nextAcceptedCount(2)), true);
+  assert.equal(walkthroughAcceptsComplete(3), true);
 
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(ran, true);

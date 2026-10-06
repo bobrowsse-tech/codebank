@@ -17,7 +17,7 @@ export function bankHome(): string {
 
 const ACCEPTED_KEY = "codebank.acceptedCount";
 
-export const activation: { elapsedMs: number; accepted: number } = { elapsedMs: 0, accepted: 0 };
+export const activation: { elapsedMs: number; accepted: number; complete: boolean } = { elapsedMs: 0, accepted: 0, complete: false };
 
 export function activate(context: vscode.ExtensionContext): typeof activation {
   const started = Date.now();
@@ -28,9 +28,8 @@ export function activate(context: vscode.ExtensionContext): typeof activation {
   const home = bankHome();
   ensureHome(home);
   activation.accepted = context.globalState.get<number>(ACCEPTED_KEY) ?? 0;
-  if (walkthroughAcceptsComplete(activation.accepted)) {
-    void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
-  }
+  activation.complete = walkthroughAcceptsComplete(activation.accepted);
+  if (activation.complete) void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
 
   const bank = new BankView(() => bankHome());
   const inbox = new InboxView(bankHome);
@@ -91,8 +90,9 @@ export function activate(context: vscode.ExtensionContext): typeof activation {
         const count = nextAcceptedCount(context.globalState.get<number>(ACCEPTED_KEY) ?? 0);
         await context.globalState.update(ACCEPTED_KEY, count);
         activation.accepted = count;
-        logStage("walkthrough", "out", { accepted: count });
-        if (walkthroughAcceptsComplete(count)) void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
+        activation.complete = walkthroughAcceptsComplete(count);
+        logStage("walkthrough", "out", { accepted: count, complete: activation.complete });
+        if (activation.complete) void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
       }
       refreshInbox();
       bank.refresh();
