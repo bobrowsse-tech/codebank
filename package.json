@@ -16,7 +16,7 @@
     "test": "npm run build && node scripts/run-tests.mjs",
     "test:ext": "npm run build && node scripts/extension-test.mjs",
     "package": "npm run build && npm run package --workspace packages/vscode",
-    "bug-bash": "node scripts/bug-bash.mjs",
+    "bug-bash": "npm run build && node scripts/bug-bash.mjs",
     "dev:cli": "node packages/cli/dist/cli.js"
   },
   "devDependencies": {

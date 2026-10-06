@@ -45,13 +45,14 @@ suite("Codebank", function () {
     assert.ok(extension);
     if (!extension.isActive) await extension.activate();
     const before = (extension.exports as { accepted: number }).accepted;
+    const run = `${process.pid}-${Date.now()}`;
     const titles = ["Format cents", "Parse query", "Clamp range"];
     for (const [index, title] of titles.entries()) {
       const proposed = await proposeCandidate(home, {
-        title,
+        title: `${title} ${run}`,
         intent: "Keeps a small helper.",
         tags: ["helper"],
-        files: [{ relPath: `src/helper${index}.ts`, content: `export function helper${index}() { return ${index}; }\n` }],
+        files: [{ relPath: `src/helper${index}.ts`, content: `// test run ${run}\nexport function helper${index}() { return ${index}; }\n` }],
       });
       assert.equal(proposed.ok, true);
       if (!proposed.ok) return;
