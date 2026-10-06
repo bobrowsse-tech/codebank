@@ -9,5 +9,6 @@ coverage/
 out-test/
 .env
 .env.*
+.local/
 *.log
 .DS_Store

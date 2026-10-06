@@ -16,7 +16,7 @@ await build({
 });
 
 const files = walk("dist-tests").filter((file) => file.endsWith(".test.js"));
-const result = spawnSync(process.execPath, ["--test", ...files], { stdio: "inherit" });
+const result = spawnSync(process.execPath, ["--test", ...files, ".cursor/hooks/review-gate.test.mjs"], { stdio: "inherit" });
 process.exit(result.status ?? 1);
 
 function walk(dir) {
