@@ -125,7 +125,7 @@ function initialize(params: Record<string, unknown>): unknown {
   return {
     protocolVersion: SUPPORTED.includes(requested) ? requested : SUPPORTED[SUPPORTED.length - 1],
     capabilities: { tools: {} },
-    serverInfo: { name: "codebank", version: "0.1.0" },
+    serverInfo: { name: "codebank", version: "0.1.2" },
   };
 }
 

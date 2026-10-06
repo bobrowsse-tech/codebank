@@ -16,13 +16,13 @@ Install the extension, then run **Codebank: Open Walkthrough**. These are the sa
 
 Run **Codebank: Scan This Machine**. A panel shows progress and **Cancel**. Codebank reads local git repositories and puts repeated code in the Inbox. The scan does not change your projects, and nothing is saved until you accept a candidate.
 
-![Scan design. The extension panel shows progress and Cancel, and finished candidates go to the Inbox.](./media/scan.png)
+![Scan design. The extension panel shows progress and Cancel, and finished candidates go to the Inbox.](https://github.com/bobrowsse-tech/codebank/raw/main/packages/cli/media/scan.png)
 
 ### 2. Accept candidates from the Inbox
 
 Open **Codebank: Open Inbox**. Each row is a candidate, either found by the scan or proposed by an agent. Accept the ones you want to keep. Dismiss the rest. An accepted candidate becomes an entry in the bank. A dismissed one is not suggested again.
 
-![Inbox. Accept or dismiss candidates. Nothing is saved until you accept it.](./media/inbox.png)
+![Inbox. Accept or dismiss candidates. Nothing is saved until you accept it.](https://github.com/bobrowsse-tech/codebank/raw/main/packages/cli/media/inbox.png)
 
 ### 3. Search and insert
 
@@ -30,7 +30,7 @@ Run **Codebank: Search** (`Cmd+Alt+Shift+B` on macOS, `Ctrl+Alt+Shift+B` elsewhe
 
 An insert in marker mode starts each file with an `@codebank` comment so a later version can be found. External mode stores that link and adds no marker text.
 
-![Search. Choosing a result inserts it, either as files in the project or at the cursor.](./media/search.png)
+![Search. Choosing a result inserts it, either as files in the project or at the cursor.](https://github.com/bobrowsse-tech/codebank/raw/main/packages/cli/media/search.png)
 
 ### 4. Deposit a selection
 
@@ -38,31 +38,31 @@ Select a function and run **Codebank: Deposit Selection** (`Cmd+Alt+B` on macOS,
 
 A selection that contains a secret cannot be saved. If you allow a draft, the selected code is sent to the editor's language model, which may be remote. You can fill the card yourself when no model is available.
 
-![Deposit. The selection is expanded into a card. Save to bank stores it. A secret blocks the save.](./media/deposit.png)
+![Deposit. The selection is expanded into a card. Save to bank stores it. A secret blocks the save.](https://github.com/bobrowsse-tech/codebank/raw/main/packages/cli/media/deposit.png)
 
 ### 5. Recall while you type
 
 In a short TypeScript or JavaScript file, Codebank can offer a banked entry when the file name matches one, when a comment asks to implement something, or when you paste a large block that is already in the bank. The suggestion is a CodeLens: the entry title inserts it, and Preview, Not now, and Mute here are next to it. **Not now** keeps that file quiet for 10 minutes. **Mute here** stops that suggestion. Three dismissals mute it as well.
 
-![Recall. An empty file offers a banked entry. Insert writes the files and does not run an install.](./media/recall.png)
+![Recall. An empty file offers a banked entry. Insert writes the files and does not run an install.](https://github.com/bobrowsse-tech/codebank/raw/main/packages/cli/media/recall.png)
 
 ### 6. Browse the bank
 
 The Codebank view lists entries, the Inbox, and Updates. Click an entry to insert it. **Retire Entry** removes it from suggestions.
 
-![Bank. The view lists entries. Clicking one inserts it.](./media/bank.png)
+![Bank. The view lists entries. Clicking one inserts it.](https://github.com/bobrowsse-tech/codebank/raw/main/packages/cli/media/bank.png)
 
 ### 7. Take an update
 
 When the bank copy is newer than a copy you inserted, it shows up under Updates. **Take update** applies one editor edit, so one undo restores your copy. **Keep mine** leaves the project file as it is. **Promote mine** snapshots the previous code and makes the next version in the bank. A conflict is opened for you to resolve and is not applied on its own.
 
-![Update review. Your inserted copy is compared with the newer bank version.](./media/update.png)
+![Update review. Your inserted copy is compared with the newer bank version.](https://github.com/bobrowsse-tech/codebank/raw/main/packages/cli/media/update.png)
 
 ### 8. Ask in chat
 
 In chat, type `#codebank` and what you need, for example `#codebank filtering`. The agent searches the bank and can insert a match. If nothing fits, it can propose the new code to your Inbox. A proposal stays there until you accept it.
 
-![Chat. #codebank finds a banked entry. An agent proposal waits in the Inbox.](./media/chat.png)
+![Chat. #codebank finds a banked entry. An agent proposal waits in the Inbox.](https://github.com/bobrowsse-tech/codebank/raw/main/packages/cli/media/chat.png)
 
 ## Use it from the terminal
 

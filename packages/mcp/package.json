@@ -1,6 +1,6 @@
 {
   "name": "@bobrowsse-tech/codebank-mcp",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Hand-written MCP server for Codebank."

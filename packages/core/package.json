@@ -1,6 +1,6 @@
 {
   "name": "@bobrowsse-tech/codebank-core",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Shared Codebank implementation. No VS Code import.",
