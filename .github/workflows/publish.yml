@@ -1,17 +1,17 @@
 name: Publish
 
 # Cut a GitHub Release (tag vX.Y.Z matching packages/vscode/package.json) to
-# attach the VSIX and publish outward. The Marketplace needs VSCE_PAT.
-# Open VSX uses the trusted publisher for bobrowsse-tech/codebank and this
-# workflow file, so the job asks for an ID token and does not send OVSX_PAT.
-# NPM_TOKEN publishes the CLI only when its package name is scoped; the
-# unscoped name "codebank" is taken. A manual run publishes Open VSX and npm
-# only. Version 0.1.0 is already on the Marketplace, so that step stays on
-# the release event.
+# attach the VSIX and publish the extension and the scoped CLI. A manual run
+# can publish the CLI alone. The Marketplace step stays on the release event.
 on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      npm_only:
+        description: Publish the CLI to npm and skip Open VSX
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -86,14 +86,14 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
           if [ -z "$VSCE_PAT" ]; then
-            echo "::error::Add repository secret VSCE_PAT (Marketplace publish scope) before publishing."
+            echo "::error::Marketplace publishing is not configured."
             exit 1
           fi
           vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' -print -quit)"
           npx --yes @vscode/vsce publish --packagePath "$vsix" -p "$VSCE_PAT"
 
       - name: Publish to Open VSX
-        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.npm_only != 'true')
         run: |
           vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' -print -quit)"
           npx --yes ovsx publish "$vsix" --trusted-publishing
@@ -104,7 +104,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN is unset. Skipping npm. The CLI publishes as @bobrowsse-tech/codebank."
+            echo "npm publishing is not configured. Skipping npm."
             exit 0
           fi
           if [ ! -f packages/cli/package.json ]; then
