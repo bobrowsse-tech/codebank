@@ -1,5 +1,13 @@
 # Codebank
 
+![Codebank](.github/social-preview.png)
+
+[![CI](https://github.com/bobrowsse-tech/codebank/actions/workflows/ci.yml/badge.svg)](https://github.com/bobrowsse-tech/codebank/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/bobrowsse-tech.codebank)](https://marketplace.visualstudio.com/items?itemName=bobrowsse-tech.codebank)
+[![Open VSX](https://img.shields.io/open-vsx/v/bobrowsse-tech/codebank)](https://open-vsx.org/extension/bobrowsse-tech/codebank)
+[![npm](https://img.shields.io/npm/v/@bobrowsse-tech/codebank)](https://www.npmjs.com/package/@bobrowsse-tech/codebank)
+
 Codebank is a local-first VS Code extension, CLI, and MCP server that banks reusable code and recalls it in any project. Entries are plain files under `~/.codebank/`. Nothing is written into a project until you accept it.
 
 The repository is public and licensed under MIT. Implementation follows `spec/CODEBANK-SPEC.md`, milestones M1 through M4, each shippable on its own.
@@ -35,10 +43,14 @@ Only collaborators with write access can open pull requests. The maintainer acco
 Publishing a GitHub Release tagged `vX.Y.Z` (the same version as `packages/vscode/package.json`) runs [`.github/workflows/publish.yml`](.github/workflows/publish.yml):
 
 1. Test, package the `.vsix`, and attach it to the release.
-2. Publish that package to the Visual Studio Marketplace (`VSCE_PAT`) and Open VSX (`OVSX_PAT`).
+2. Publish that package to the Visual Studio Marketplace (`VSCE_PAT`). Open VSX uses trusted publishing from this workflow, for `bobrowsse-tech/codebank` and `publish.yml`.
 3. Publish the CLI to npm only when `NPM_TOKEN` is set and the package name is scoped. The unscoped name `codebank` is already taken.
 
-`workflow_dispatch` on the same workflow packages and uploads a build artifact without publishing.
+A manual run of the same workflow publishes Open VSX and npm, and leaves the Marketplace step for a release.
+
+## Sponsor
+
+[Sponsor the work](https://github.com/sponsors/bobrowsse-tech) if Codebank saves you time.
 
 ## Contents
 

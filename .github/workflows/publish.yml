@@ -1,11 +1,13 @@
 name: Publish
 
 # Cut a GitHub Release (tag vX.Y.Z matching packages/vscode/package.json) to
-# attach the VSIX and publish outward. Marketplace and Open VSX need
-# repository secrets VSCE_PAT and OVSX_PAT. NPM_TOKEN publishes the CLI only
-# when its package name is scoped; the unscoped name "codebank" is taken.
-# A manual run publishes Open VSX and npm only. Version 0.1.0 is already on
-# the Marketplace, so that step stays on the release event.
+# attach the VSIX and publish outward. The Marketplace needs VSCE_PAT.
+# Open VSX uses the trusted publisher for bobrowsse-tech/codebank and this
+# workflow file, so the job asks for an ID token and does not send OVSX_PAT.
+# NPM_TOKEN publishes the CLI only when its package name is scoped; the
+# unscoped name "codebank" is taken. A manual run publishes Open VSX and npm
+# only. Version 0.1.0 is already on the Marketplace, so that step stays on
+# the release event.
 on:
   release:
     types: [published]
@@ -13,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: publish
@@ -91,15 +94,9 @@ jobs:
 
       - name: Publish to Open VSX
         if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
-          if [ -z "$OVSX_PAT" ]; then
-            echo "::error::Add repository secret OVSX_PAT from open-vsx.org before publishing."
-            exit 1
-          fi
           vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' -print -quit)"
-          npx --yes ovsx publish "$vsix" -p "$OVSX_PAT"
+          npx --yes ovsx publish "$vsix" --trusted-publishing
 
       - name: Publish the scoped CLI to npm
         if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
