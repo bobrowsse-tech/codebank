@@ -3,7 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import * as vscode from "vscode";
-import { ensureHome, saveEntry } from "../../core/src/index.ts";
+import { ensureHome, listEntries, proposeCandidate, saveEntry } from "../../core/src/index.ts";
+import { ACTIVATION_IDLE_MS } from "../src/startup.ts";
 
 declare function suite(name: string, fn: (this: { timeout: (ms: number) => void }) => void): void;
 declare function test(name: string, fn: () => Promise<void>): void;
@@ -14,8 +15,16 @@ suite("Codebank", function () {
   test("activates against the fixture workspace", async () => {
     const extension = vscode.extensions.getExtension("bobrowsse-tech.codebank");
     assert.ok(extension, "extension is installed");
-    await extension.activate();
+    let wallMs = 0;
+    if (!extension.isActive) {
+      const started = Date.now();
+      await extension.activate();
+      wallMs = Date.now() - started;
+      assert.ok(wallMs <= ACTIVATION_IDLE_MS, `activation wall clock was ${wallMs} ms`);
+    }
     assert.equal(extension.isActive, true);
+    const api = extension.exports as { elapsedMs: number; accepted: number };
+    assert.ok(api.elapsedMs <= ACTIVATION_IDLE_MS, `activation took ${api.elapsedMs} ms`);
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes("codebank.deposit"));
     assert.ok(commands.includes("codebank.search"));
@@ -25,6 +34,32 @@ suite("Codebank", function () {
     assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_search"));
     assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_get"));
     assert.ok(vscode.lm.tools.some((tool) => tool.name === "codebank_propose"));
+  });
+
+  test("three accepts complete the walkthrough step", async () => {
+    const home = process.env.CODEBANK_HOME;
+    assert.ok(home);
+    ensureHome(home);
+    const extension = vscode.extensions.getExtension("bobrowsse-tech.codebank");
+    assert.ok(extension);
+    if (!extension.isActive) await extension.activate();
+    const before = (extension.exports as { accepted: number }).accepted;
+    const titles = ["Format cents", "Parse query", "Clamp range"];
+    for (const [index, title] of titles.entries()) {
+      const proposed = await proposeCandidate(home, {
+        title,
+        intent: "Keeps a small helper.",
+        tags: ["helper"],
+        files: [{ relPath: `src/helper${index}.ts`, content: `export function helper${index}() { return ${index}; }\n` }],
+      });
+      assert.equal(proposed.ok, true);
+      if (!proposed.ok) return;
+      await vscode.commands.executeCommand("codebank.accept", proposed.candidate.id);
+    }
+    assert.ok(listEntries(home).length >= 3);
+    const api = extension.exports as { accepted: number };
+    assert.equal(api.accepted, before + 3);
+    assert.ok(api.accepted >= 3);
   });
 
   test("#codebank filtering returns the banked card", async () => {

@@ -3,7 +3,7 @@
   "displayName": "Codebank",
   "publisher": "bobrowsse-tech",
   "version": "0.1.0",
-  "description": "Bank reusable code locally and recall it in any project. Nothing leaves this machine.",
+  "description": "Bank reusable code locally and recall it in any project. No telemetry. A deposit draft is sent to the editor's language model only after you allow it.",
   "license": "MIT",
   "author": "Bob Rowsse Walakira <hello@bobrowsse.com>",
   "private": true,
@@ -81,7 +81,7 @@
         "codebank.home": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Bank folder. Empty uses `~/.codebank`. Codebank does not use the network and does not send telemetry."
+          "markdownDescription": "Bank folder. Empty uses `~/.codebank`. Codebank does not send telemetry and does not open its own network connections. A deposit draft is sent to the editor's language model only after you allow it."
         },
         "codebank.insertDir": {
           "type": "string",

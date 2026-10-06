@@ -13,11 +13,13 @@ core.setLogger((stage, direction, data) => {
 });
 
 const done = [];
-const home = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-bash-"));
-const alpha = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-bash-alpha-"));
-const beta = fs.mkdtempSync(path.join(os.tmpdir(), "codebank-bash-beta-"));
+const created = [];
+const home = tempDir("codebank-bash-");
+const alpha = tempDir("codebank-bash-alpha-");
+const beta = tempDir("codebank-bash-beta-");
 const alphaRepo = "a".repeat(40);
 const betaRepo = "b".repeat(40);
+let failed;
 
 try {
   core.ensureHome(home);
@@ -77,10 +79,12 @@ try {
   const candidate = core.listCandidates(home)[0];
   const before = core.listEntries(home).length;
   const projectBefore = snapshot(alpha);
+  const rootsBefore = roots.map(snapshot);
   const accepted = await core.acceptCandidate(home, candidate.id);
   if (!accepted.ok) fail("inbox", accepted.reason);
   if (core.listEntries(home).length !== before + 1) fail("inbox", "accept did not create an entry");
   if (snapshot(alpha) !== projectBefore) fail("inbox", "accept wrote a project file");
+  if (roots.map(snapshot).join("\n") !== rootsBefore.join("\n")) fail("inbox", "accept changed a scanned repository");
   pass("inbox");
 
   const proposed = await core.proposeCandidate(home, {
@@ -124,7 +128,12 @@ try {
   if (retiredNotices.some((notice) => notice.slug === "filtering")) fail("retire", "a retired entry still shows an update");
   pass("retire");
 } catch (error) {
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  failed = error;
+} finally {
+  for (const dir of created) fs.rmSync(dir, { recursive: true, force: true });
+}
+if (failed) {
+  console.error(failed instanceof Error ? failed.stack ?? failed.message : String(failed));
   process.exit(1);
 }
 
@@ -142,13 +151,18 @@ function pass(name) {
 }
 
 function fail(name, detail) {
-  console.error(`FAIL  ${name} — ${detail}`);
-  process.exit(1);
+  throw new Error(`FAIL  ${name} — ${detail}`);
+}
+
+function tempDir(prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  created.push(dir);
+  return dir;
 }
 
 function copyRepo(name) {
   const from = path.join(root, "fixtures/repos", name);
-  const to = fs.mkdtempSync(path.join(os.tmpdir(), `codebank-bash-${name}-`));
+  const to = tempDir(`codebank-bash-${name}-`);
   fs.cpSync(from, to, { recursive: true });
   execFileSync("git", ["init"], { cwd: to, stdio: "ignore" });
   execFileSync("git", ["add", "-A"], { cwd: to, stdio: "ignore" });
@@ -156,14 +170,17 @@ function copyRepo(name) {
 }
 
 function snapshot(dir) {
-  return walk(dir).join("\n");
+  return walk(dir, dir).sort().join("\n");
 }
 
-function walk(dir) {
+function walk(dir, base) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).flatMap((name) => {
+    if (name === ".git") return [];
     const full = path.join(dir, name);
-    return fs.statSync(full).isDirectory() ? walk(full) : [path.relative(dir, full)];
+    if (fs.statSync(full).isDirectory()) return walk(full, base);
+    const rel = path.relative(base, full).split(path.sep).join("/");
+    return [`${rel}\t${fs.readFileSync(full, "utf8")}`];
   });
 }
 

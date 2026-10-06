@@ -21,7 +21,8 @@ test("the walkthrough, settings, and listing are ready to publish", () => {
   assert.equal(manifest.publisher, "bobrowsse-tech");
   assert.equal(manifest.icon, "media/icon.png");
   assert.match(manifest.repository.url, /bobrowsse-tech\/codebank$/);
-  assert.match(manifest.description, /machine/);
+  assert.match(manifest.description, /telemetry/i);
+  assert.match(manifest.description, /language model/i);
   const settings = Object.keys(manifest.contributes.configuration.properties).sort();
   assert.deepEqual(settings, [
     "codebank.home",
@@ -48,13 +49,15 @@ test("the walkthrough, settings, and listing are ready to publish", () => {
   assert.ok(manifest.contributes.commands.some((command) => command.command === "codebank.showWalkthrough"));
 
   const privacy = fs.readFileSync(path.join(root, "packages/vscode/PRIVACY.md"), "utf8");
-  assert.match(privacy, /no telemetry/i);
-  assert.match(privacy, /network/i);
+  assert.match(privacy, /does not send telemetry/i);
+  assert.match(privacy, /language model/i);
+  assert.doesNotMatch(manifest.description, /nothing leaves this machine/i);
   const changelog = fs.readFileSync(path.join(root, "packages/vscode/CHANGELOG.md"), "utf8");
   assert.match(changelog, /0\.1\.0/);
   const listing = fs.readFileSync(path.join(root, "packages/vscode/README.md"), "utf8");
   assert.match(listing, /#codebank/);
   assert.match(listing, /does not send telemetry/i);
+  assert.match(listing, /language model/i);
 
   const icon = fs.readFileSync(path.join(root, "packages/vscode/media/icon.png"));
   assert.equal(icon.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");

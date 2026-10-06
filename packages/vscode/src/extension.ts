@@ -7,7 +7,7 @@ import { previewCandidate, searchCommand } from "./search.ts";
 import { registerRecall } from "./recall.ts";
 import { noteSavedCopy, noteWorkspaceDrift, reviewUpdate, updateEvents, updateText } from "./lineage.ts";
 import { scanFolders } from "./scan.ts";
-import { ACTIVATION_IDLE_MS, afterActivation, idleAfterActivation } from "./startup.ts";
+import { ACTIVATION_IDLE_MS, afterActivation, idleAfterActivation, nextAcceptedCount, walkthroughAcceptsComplete } from "./startup.ts";
 import { registerTools } from "./tools.ts";
 
 export function bankHome(): string {
@@ -17,7 +17,9 @@ export function bankHome(): string {
 
 const ACCEPTED_KEY = "codebank.acceptedCount";
 
-export function activate(context: vscode.ExtensionContext): void {
+export const activation: { elapsedMs: number; accepted: number } = { elapsedMs: 0, accepted: 0 };
+
+export function activate(context: vscode.ExtensionContext): typeof activation {
   const started = Date.now();
   const output = vscode.window.createOutputChannel("Codebank", { log: true });
   setLogger((stage, direction, data) => {
@@ -25,7 +27,8 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   const home = bankHome();
   ensureHome(home);
-  if ((context.globalState.get<number>(ACCEPTED_KEY) ?? 0) >= 3) {
+  activation.accepted = context.globalState.get<number>(ACCEPTED_KEY) ?? 0;
+  if (walkthroughAcceptsComplete(activation.accepted)) {
     void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
   }
 
@@ -85,10 +88,11 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!outcome.ok) {
         void vscode.window.showWarningMessage(outcome.reason === "missing" ? "That candidate is gone." : `Not accepted: ${outcome.reason}.`);
       } else {
-        const count = (context.globalState.get<number>(ACCEPTED_KEY) ?? 0) + 1;
+        const count = nextAcceptedCount(context.globalState.get<number>(ACCEPTED_KEY) ?? 0);
         await context.globalState.update(ACCEPTED_KEY, count);
+        activation.accepted = count;
         logStage("walkthrough", "out", { accepted: count });
-        if (count >= 3) void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
+        if (walkthroughAcceptsComplete(count)) void vscode.commands.executeCommand("setContext", "codebank.acceptedThree", true);
       }
       refreshInbox();
       bank.refresh();
@@ -132,9 +136,6 @@ export function activate(context: vscode.ExtensionContext): void {
       });
     }
   });
-  const elapsedMs = Date.now() - started;
-  logStage("activate", "out", { elapsedMs, budgetMs: ACTIVATION_IDLE_MS });
-  if (!idleAfterActivation(elapsedMs)) output.warn(`Activation took ${elapsedMs} ms. Idle budget is ${ACTIVATION_IDLE_MS} ms.`);
 
   const homeUri = vscode.Uri.file(bankHome());
   const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(homeUri, "entries/**"));
@@ -155,6 +156,10 @@ export function activate(context: vscode.ExtensionContext): void {
   inboxWatcher.onDidCreate(refreshInbox);
   inboxWatcher.onDidDelete(refreshInbox);
   context.subscriptions.push(watcher, inboxWatcher);
+  activation.elapsedMs = Date.now() - started;
+  logStage("activate", "out", { elapsedMs: activation.elapsedMs, budgetMs: ACTIVATION_IDLE_MS });
+  if (!idleAfterActivation(activation.elapsedMs)) output.warn(`Activation took ${activation.elapsedMs} ms. Idle budget is ${ACTIVATION_IDLE_MS} ms.`);
+  return activation;
 }
 
 function updateTarget(slug?: unknown, relPath?: unknown, repoId?: unknown): { slug: string; relPath: string; repoId: string } | undefined {

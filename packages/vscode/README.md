@@ -1,6 +1,6 @@
 # Codebank
 
-Bank reusable code on this machine and recall it in any project. Entries are plain files under `~/.codebank/`. Nothing is sent over the network, and nothing is written into a project until you accept it.
+Bank reusable code on this machine and recall it in any project. Entries are plain files under `~/.codebank/`. Nothing is written into a project until you accept it.
 
 ## Getting started
 
@@ -16,7 +16,7 @@ The same bank is available in a terminal as `codebank search`, `codebank get`, a
 
 ## Privacy
 
-Codebank does not use the network and does not send telemetry. See [PRIVACY.md](PRIVACY.md).
+Codebank does not send telemetry and does not open its own network connections. If you allow it while depositing, the selected code is sent to the editor's language model, which may be remote. See [PRIVACY.md](PRIVACY.md).
 
 ## Settings
 

@@ -1,6 +1,6 @@
 # Codebank
 
-Codebank is a local-first VS Code extension, CLI, and MCP server that banks reusable code and recalls it in any project. Entries are plain files under `~/.codebank/`. Nothing is sent over the network, and nothing is written into a project until you accept it.
+Codebank is a local-first VS Code extension, CLI, and MCP server that banks reusable code and recalls it in any project. Entries are plain files under `~/.codebank/`. Nothing is written into a project until you accept it.
 
 The repository is public and licensed under MIT. Implementation follows `spec/CODEBANK-SPEC.md`, milestones M1 through M4, each shippable on its own.
 
@@ -22,7 +22,7 @@ From a terminal, the same bank is `codebank add`, `codebank search`, and `codeba
 
 An insert keeps a marker so a later version shows up under Updates. External mode stores that link and does not add marker text. Taking an update is one editor edit, so one undo puts the old copy back. A conflict is never applied on its own.
 
-Codebank does not use the network and does not send telemetry. The statement is [packages/vscode/PRIVACY.md](packages/vscode/PRIVACY.md). Settings are reviewed in the extension manifest under `codebank.*`.
+Codebank does not send telemetry and does not open its own network connections. If you allow a deposit draft, the selected code goes to the editor's language model, which may be remote. The statement is [packages/vscode/PRIVACY.md](packages/vscode/PRIVACY.md). Settings are reviewed in the extension manifest under `codebank.*`.
 
 ## Repository rules
 
