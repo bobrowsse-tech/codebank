@@ -458,7 +458,7 @@ A finding blocks Save until the user removes it or marks that finding a false po
 
 Decided on 2 October 2026: Codebank is open source under MIT. The GitHub repository is public, and `main` accepts changes only through pull requests from accounts with write access. Agents use the Choice column for anything still open. None of the open rows block M1.
 
-Publishing runs from `.github/workflows/publish.yml` when a maintainer publishes a GitHub Release. The workflow attaches the `.vsix` to that release, publishes to the Marketplace when `VSCE_PAT` is set, and publishes to Open VSX with the trusted publisher registered for this repository and `publish.yml`. It does not publish to npm until the package name is a scope you have chosen.
+Publishing runs from `.github/workflows/publish.yml` when a maintainer publishes a GitHub Release. The workflow attaches the `.vsix` to that release and publishes the extension and the scoped CLI.
 
 | Decision | Choice | Note |
 | --- | --- | --- |

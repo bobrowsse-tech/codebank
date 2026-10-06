@@ -1,6 +1,6 @@
 {
   "name": "@bobrowsse-tech/codebank",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Bank reusable code locally and recall it from the terminal.",
   "license": "MIT",
   "author": "Bob Rowsse Walakira <hello@bobrowsse.com>",
@@ -9,7 +9,9 @@
     "codebank": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "media",
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"

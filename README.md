@@ -38,16 +38,6 @@ Codebank does not send telemetry and does not open its own network connections. 
 
 Only collaborators with write access can open pull requests. The maintainer account is [bobrowsse-tech](https://github.com/bobrowsse-tech). Add another maintainer from the repository collaborators settings; everyone else can clone and use the code, and cannot open a pull request.
 
-## Publish
-
-Publishing a GitHub Release tagged `vX.Y.Z` (the same version as `packages/vscode/package.json`) runs [`.github/workflows/publish.yml`](.github/workflows/publish.yml):
-
-1. Test, package the `.vsix`, and attach it to the release.
-2. Publish that package to the Visual Studio Marketplace (`VSCE_PAT`). Open VSX uses trusted publishing from this workflow, for `bobrowsse-tech/codebank` and `publish.yml`.
-3. Publish the CLI to npm only when `NPM_TOKEN` is set and the package name is scoped. The unscoped name `codebank` is already taken.
-
-A manual run of the same workflow publishes Open VSX and npm, and leaves the Marketplace step for a release.
-
 ## Sponsor
 
 [Sponsor the work](https://github.com/sponsors/bobrowsse-tech) if Codebank saves you time.
