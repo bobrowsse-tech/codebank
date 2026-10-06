@@ -3,6 +3,8 @@ name: Publish
 # Cut a GitHub Release (tag vX.Y.Z matching packages/vscode/package.json) to
 # attach the VSIX and publish the extension and the scoped CLI. A manual run
 # can publish the CLI alone. The Marketplace step stays on the release event.
+# Node 22 is required because the Open VSX publisher CLI that accepts an
+# Actions token does not install on Node 20.
 on:
   release:
     types: [published]
@@ -30,7 +32,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org
 
       - name: Require the extension package
@@ -96,7 +98,7 @@ jobs:
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.npm_only != 'true')
         run: |
           vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' -print -quit)"
-          npx --yes ovsx publish "$vsix" --trusted-publishing
+          npx --yes ovsx publish --trusted-publishing "$vsix"
 
       - name: Publish the scoped CLI to npm
         if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
