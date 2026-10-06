@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- The published extension, the CLI, the Marketplace, and Open VSX share this version. The CLI listing shows the screenshots.
+
 ## 0.1.0
 
 - Deposit a selection, search the bank, and insert it with a marker. The install command is typed into a terminal and not run.

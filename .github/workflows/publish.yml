@@ -129,4 +129,10 @@ jobs:
           if [ "$code" -ne 0 ]; then
             exit "$code"
           fi
+          version="$(node -p "require('./packages/cli/package.json').version")"
+          name="$(node -p "require('./packages/cli/package.json').name")"
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            echo "CLI ${name}@${version} is already published."
+            exit 0
+          fi
           npm publish --workspace packages/cli --access public
