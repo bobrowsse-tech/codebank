@@ -100,6 +100,21 @@ jobs:
           vsix="$(find . -name '*.vsix' -not -path './node_modules/*' -not -path './.git/*' -print -quit)"
           npx --yes ovsx publish --trusted-publishing "$vsix"
 
+
+      - name: Refresh extension directory
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.DIRECTORY_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "DIRECTORY_DISPATCH_TOKEN unset — skip directory refresh"
+            exit 0
+          fi
+          gh api repos/bobrowsse-tech/vscode-extensions/dispatches \
+            -f event_type=extension-published \
+            -f "client_payload[extension]=${GITHUB_REPOSITORY#*/}"
+
       - name: Publish the scoped CLI to npm
         if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         env:
